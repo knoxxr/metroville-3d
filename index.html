@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b1120" />
+  <title>메트로빌 3D — 시티즈: 스카이라인 Three.js 에디션</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="relative w-screen h-[100dvh] overflow-hidden antialiased text-xs">
+  <!-- Full-Screen Three.js WebGL2 Canvas (Multi-Touch Enabled) -->
+  <canvas id="glCanvas" class="block w-full h-full cursor-crosshair"></canvas>
+
+  <!-- Floating Cities: Skylines Cursor Telemetry Pill (Length m / Angle / Snap / Bridge / Cost) -->
+  <div id="cursorHudTag" class="fixed pointer-events-none z-40 hidden px-2.5 py-1.5 rounded-lg glass shadow-2xl text-xs leading-tight border-sky-400/60">
+    <div id="cursorHudMain" class="font-bold text-sky-300 flex items-center gap-1.5 whitespace-nowrap"></div>
+    <div id="cursorHudSub" class="text-[11px] text-[var(--muted-foreground)] mt-0.5 whitespace-nowrap"></div>
+  </div>
+
+  <!-- TOP-LEFT: Iconic Cities: Skylines Circular Info Views Toggle + Collapsible 2-Col Drawer -->
+  <div class="fixed safe-top left-2.5 z-30 flex items-start gap-2 pointer-events-none">
+    <button
+      id="btnToggleInfoViews"
+      class="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-b from-sky-400 to-sky-600 text-slate-950 shadow-xl border-2 border-sky-200/80 flex items-center justify-center text-base md:text-lg font-extrabold hover:brightness-110 active:scale-95 transition pointer-events-auto shrink-0"
+      title="정보 뷰 패널 열기/닫기 (I)"
+    >ℹ️</button>
+    <div id="infoViewDrawer" class="hidden glass rounded-2xl p-2 shadow-2xl pointer-events-auto w-[216px] max-w-[calc(100vw-68px)]">
+      <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[var(--border)]">
+        <span class="font-bold text-xs text-sky-300">정보 뷰 (I)</span>
+        <span id="activeViewBadge" class="text-[11px] text-[var(--muted-foreground)]">기본 시점</span>
+      </div>
+      <div id="infoViewList" class="grid grid-cols-2 gap-1"></div>
+    </div>
+  </div>
+
+  <!-- TOP-CENTER (Desktop: Chirper Bird / Mobile: Compact City KPI Strip) -->
+  <div class="fixed safe-top left-1/2 -translate-x-1/2 z-30 flex flex-col items-center pointer-events-none max-w-[calc(100vw-112px)]">
+    <!-- Mobile Compact KPI Pill (< md) -->
+    <div class="flex md:hidden glass rounded-full px-3 py-1.5 items-center gap-2.5 shadow-xl pointer-events-auto tabular-nums">
+      <span id="mMoney" class="font-bold text-amber-300 whitespace-nowrap">₩0</span>
+      <span id="mPop" class="font-bold text-emerald-400 whitespace-nowrap">0명</span>
+      <span class="text-[11px] text-slate-200 whitespace-nowrap">😊<span id="mHappy">80%</span></span>
+      <span class="text-[11px] text-sky-300 whitespace-nowrap">🚗<span id="mTraffic">87%</span></span>
+    </div>
+
+    <!-- Desktop Iconic Chirper Bird Emblem (>= md) -->
+    <button
+      id="btnChirper"
+      class="hidden md:flex glass rounded-full pl-1.5 pr-3.5 py-1 items-center gap-2 shadow-xl hover:border-sky-400/60 transition pointer-events-auto max-w-[440px]"
+      title="치퍼(Chirper) 시민 피드 펼치기/접기"
+    >
+      <span class="w-7 h-7 rounded-full bg-gradient-to-b from-sky-400 to-blue-600 flex items-center justify-center text-sm shadow shrink-0">🐦</span>
+      <span id="hudChirp" class="truncate text-xs text-[var(--foreground)]">도시 시뮬레이션 준비 중...</span>
+    </button>
+    <div id="chirperDropdown" class="hidden mt-1.5 glass rounded-xl p-2.5 w-[320px] max-w-[90vw] shadow-2xl pointer-events-auto space-y-1.5">
+      <div class="text-[11px] font-bold text-sky-300 border-b border-[var(--border)] pb-1">🐦 #메트로빌 실시간 시민 반응</div>
+      <div id="chirperList" class="space-y-1 text-xs text-[var(--foreground)]"></div>
+    </div>
+  </div>
+
+  <!-- TOP-RIGHT: Mobile Menu/Quest/Minimap Icons + Collapsible Cards -->
+  <aside class="fixed safe-top right-2.5 z-20 flex flex-col items-end gap-2 pointer-events-none max-w-[266px]">
+    <!-- Mobile Compact Action Pill (< md) -->
+    <div class="flex md:hidden items-center gap-1 pointer-events-auto">
+      <button id="btnMobileQuest" class="w-10 h-10 rounded-full glass flex items-center justify-center text-base shadow-xl active:scale-95" title="시장 미션 보기">🎯</button>
+      <button id="btnMobileMenu" class="w-10 h-10 rounded-full glass flex items-center justify-center text-base shadow-xl active:scale-95" title="도시 메뉴 (재정/부지/정책/설정)">☰</button>
+    </div>
+
+    <!-- Mobile Quick Menu Dropdown (< md) -->
+    <div id="mobileMenuDrawer" class="hidden md:hidden glass rounded-2xl p-2.5 w-[224px] shadow-2xl pointer-events-auto space-y-2">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-1.5">
+        <span class="font-bold text-xs text-sky-300">🏙️ 메트로빌 메뉴</span>
+        <button id="btnCloseMobileMenu" class="px-1.5 py-0.5 text-[var(--muted-foreground)]">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="mBtnEconomy" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)] font-semibold">📊 재정·통계</button>
+        <button id="mBtnSectors" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)] text-emerald-300 font-semibold">🗺️ 부지·특화</button>
+        <button id="mBtnPolicies" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)] font-semibold">📜 시정 정책</button>
+        <button id="mBtnMinimap" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)] font-semibold">🗺️ 미니맵</button>
+        <button id="mBtnSandbox" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)]">🔒 일반</button>
+        <button id="mBtnLight" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)]">☀️ 낮</button>
+        <button id="mBtnNewCity" class="px-2 py-2 rounded-xl bg-slate-900/70 border border-[var(--border)]">🌱 새 도시</button>
+        <button id="mBtnDemoCity" class="px-2 py-2 rounded-xl bg-sky-500/25 border border-sky-400/40 text-sky-300 font-semibold">🌆 데모</button>
+      </div>
+      <div class="flex items-center justify-between pt-1 border-t border-[var(--border)]">
+        <span class="text-[11px] text-[var(--muted-foreground)]">속도 조절</span>
+        <div class="flex gap-1">
+          <button data-speed="0" class="spd-btn px-2 py-1 rounded-lg bg-slate-900/70">⏸</button>
+          <button data-speed="1" class="spd-btn px-2 py-1 rounded-lg bg-sky-500 text-slate-950 font-bold">▶</button>
+          <button data-speed="2" class="spd-btn px-2 py-1 rounded-lg bg-slate-900/70">⏩</button>
+          <button data-speed="3" class="spd-btn px-2 py-1 rounded-lg bg-slate-900/70">⏭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop Top-Right Utility Pill (>= md) -->
+    <div class="hidden md:flex glass rounded-full px-2 py-1 items-center gap-1 shadow-xl pointer-events-auto">
+      <button id="btnSandbox" class="px-2 py-0.5 rounded-full hover:bg-white/10 text-xs whitespace-nowrap" title="모든 시설·구역 즉시 해금">🔒 일반</button>
+      <button id="btnSound" class="px-1.5 py-0.5 rounded-full hover:bg-white/10 text-xs" title="효과음 토글">🔊</button>
+      <button id="btnToggleMinimap" class="px-1.5 py-0.5 rounded-full hover:bg-white/10 text-xs" title="미니맵 보이기/숨기기 (M)">🗺️</button>
+      <button id="btnNewCity" class="px-2 py-0.5 rounded-full hover:bg-white/10 text-xs whitespace-nowrap" title="빈 60x60 지형에서 새로 시작">🌱 새 도시</button>
+      <button id="btnDemoCity" class="px-2 py-0.5 rounded-full bg-sky-500/25 hover:bg-sky-500/40 text-sky-300 font-semibold text-xs whitespace-nowrap" title="5개 특화지구 메가폴리스">🌆 데모</button>
+    </div>
+
+    <!-- Compact Mayor Mission Card (Desktop always visible, Mobile toggled by 🎯) -->
+    <div id="questCard" class="hidden md:block glass rounded-xl p-2.5 w-[240px] shadow-xl pointer-events-auto">
+      <div class="flex items-center justify-between">
+        <span class="font-bold text-sky-300 text-xs">🎯 시장 미션</span>
+        <span id="questCount" class="text-[11px] text-[var(--muted-foreground)]">0/6 완료</span>
+      </div>
+      <div id="questTitle" class="font-bold text-xs mt-0.5">도시 생명선 완비</div>
+      <div id="questDesc" class="text-[11px] text-[var(--muted-foreground)] mt-0.5 leading-snug"></div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1.5">
+        <div id="questBar" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 transition-all duration-300" style="width: 0%"></div>
+      </div>
+      <div class="flex items-center justify-between mt-1 text-[11px]">
+        <span id="questProgress" class="text-sky-300 font-semibold"></span>
+        <span id="questReward" class="text-amber-300 font-bold"></span>
+      </div>
+    </div>
+
+    <!-- Dynamic City Event Choice Card -->
+    <div id="eventCard" class="hidden glass rounded-xl p-3 w-[256px] max-w-[calc(100vw-20px)] shadow-2xl pointer-events-auto border-amber-400/60">
+      <div class="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
+        <span id="evIcon">⚡</span>
+        <span id="evTitle">도시 이벤트</span>
+      </div>
+      <p id="evDesc" class="text-[11px] text-[var(--foreground)] mt-1 leading-relaxed"></p>
+      <div class="flex flex-col gap-1.5 mt-2">
+        <button id="btnEvA" class="w-full text-left px-2.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/50 transition">
+          <div id="evALabel" class="font-bold text-sky-200 text-xs"></div>
+          <div id="evADesc" class="text-[11px] text-sky-300/80"></div>
+        </button>
+        <button id="btnEvB" class="w-full text-left px-2.5 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-[var(--border)] transition">
+          <div id="evBLabel" class="font-bold text-slate-200 text-xs"></div>
+          <div id="evBDesc" class="text-[11px] text-[var(--muted-foreground)]"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Buff Chips -->
+    <div id="buffRow" class="flex flex-wrap justify-end gap-1 pointer-events-auto"></div>
+
+    <!-- Tile Inspector Card -->
+    <div id="inspectorCard" class="hidden glass rounded-xl p-2.5 w-[240px] shadow-xl pointer-events-auto">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-1">
+        <span id="inspTitle" class="font-bold text-xs">타일 정보</span>
+        <button id="btnCloseInsp" class="text-[var(--muted-foreground)] hover:text-white px-2 py-0.5">✕</button>
+      </div>
+      <div id="inspBody" class="mt-1.5 space-y-1 text-xs"></div>
+      <div id="inspActions" class="mt-2 flex gap-1.5"></div>
+    </div>
+
+    <!-- Interactive 2D Minimap (Desktop visible, Mobile toggled via Menu) -->
+    <div id="minimapBox" class="hidden md:block glass rounded-xl p-2 shadow-xl pointer-events-auto">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[11px] font-bold text-[var(--muted-foreground)]">🗺️ 미니맵 (60×60)</span>
+        <div class="flex gap-1">
+          <button id="btnCamClose" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px]" title="거리 뷰">🔍</button>
+          <button id="btnCamSat" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px]" title="위성 전체 뷰">🛰️</button>
+        </div>
+      </div>
+      <canvas id="minimapCanvas" width="128" height="128" class="rounded-lg border border-[var(--border)] cursor-pointer block"></canvas>
+    </div>
+  </aside>
+
+  <!-- Toast Stack -->
+  <div id="toastStack" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-1.5 pointer-events-none items-center w-[90vw] max-w-md"></div>
+
+  <!-- BOTTOM: Responsive Cities: Skylines Unified Console & Touch-Friendly Build Tray -->
+  <footer class="fixed safe-bottom left-1.5 right-1.5 z-30 flex flex-col items-center gap-1.5 pointer-events-none">
+    <!-- Floating Touch Action Pill (Visible when chaining a road/pipe/power line so mobile users can finish without right-click!) -->
+    <div id="touchChainBar" class="hidden glass rounded-full px-3 py-1.5 shadow-2xl flex items-center gap-2 border-sky-400/60 pointer-events-auto">
+      <span class="text-xs font-bold text-sky-300">📍 시작점 고정됨 — 끝점을 탭해 연속 시공</span>
+      <button id="btnCancelChain" class="px-2.5 py-1 rounded-full bg-rose-500/30 hover:bg-rose-500/50 text-rose-200 border border-rose-400/50 font-bold text-xs active:scale-95">✕ 연결 종료</button>
+    </div>
+
+    <!-- Mobile 1-Handed Touch Camera Mode Pill (< md) -->
+    <div class="flex md:hidden items-center gap-1.5 pointer-events-auto">
+      <div class="glass rounded-full p-0.5 flex items-center gap-0.5 shadow-lg">
+        <button data-mcam="build" class="mcam-btn active px-2.5 py-1 rounded-full text-xs">🏗️ 건설</button>
+        <button data-mcam="pan" class="mcam-btn px-2.5 py-1 rounded-full text-xs">✋ 이동</button>
+        <button data-mcam="orbit" class="mcam-btn px-2.5 py-1 rounded-full text-xs">🔄 회전</button>
+      </div>
+      <button id="btnMobileZoomIn" class="w-8 h-8 rounded-full glass flex items-center justify-center text-sm font-bold active:scale-95" title="확대">＋</button>
+      <button id="btnMobileZoomOut" class="w-8 h-8 rounded-full glass flex items-center justify-center text-sm font-bold active:scale-95" title="축소">－</button>
+    </div>
+
+    <!-- Pop-Up Build Tool Tray with Responsive Left/Top Sub-Mode Panel -->
+    <div id="buildTray" class="glass rounded-2xl p-2 shadow-2xl w-full max-w-[96vw] md:w-auto flex flex-col md:flex-row items-stretch gap-1.5 md:gap-2 pointer-events-auto">
+      <!-- Road Draw Modes (Horizontal strip on Mobile, Vertical 2x2 panel on Desktop!) -->
+      <div id="roadSubPanel" class="flex flex-row md:flex-col justify-between md:justify-center gap-1 pb-1.5 md:pb-0 md:pr-2 border-b md:border-b-0 md:border-r border-[var(--border)] shrink-0 overflow-x-auto no-scrollbar">
+        <div class="flex md:grid md:grid-cols-2 gap-1 shrink-0">
+          <button data-rmode="straight" class="rmode-btn px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap" title="직선 도로 (0°/90° 정렬)">━ 직선</button>
+          <button data-rmode="l_bend" class="rmode-btn active px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap" title="직각 90° 코너 연결">↱ 직각</button>
+          <button data-rmode="curve" class="rmode-btn px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap" title="부드러운 곡선 도로">〰️ 곡선</button>
+          <button data-rmode="upgrade" class="rmode-btn px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap" title="기존 도로 업그레이드 전용">⬆️ 확장</button>
+        </div>
+        <button id="btnToggleSnap" class="px-2.5 py-1 md:w-full md:px-2 md:py-0.5 rounded-lg bg-sky-500/25 text-sky-200 border border-sky-400/50 text-[11px] font-semibold whitespace-nowrap shrink-0" title="자석 스냅 및 90° 가이드라인 토글 (G)">🧲 스냅 ON</button>
+      </div>
+
+      <!-- Brush Sub-Panel (for Zoning / Bulldoze) -->
+      <div id="brushSubPanel" class="hidden flex-row md:flex-col justify-center gap-1 pb-1.5 md:pb-0 md:pr-2 border-b md:border-b-0 md:border-r border-[var(--border)] shrink-0 overflow-x-auto no-scrollbar">
+        <div class="flex md:grid md:grid-cols-2 gap-1">
+          <button data-brush="auto" class="brush-btn active px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap">⚡ 스마트</button>
+          <button data-brush="free" class="brush-btn px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap">🖊️ 단일</button>
+          <button data-brush="box" class="brush-btn px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap">⬛ 범위</button>
+          <button data-brush="grid" class="brush-btn px-2.5 py-1.5 md:px-2 md:py-1 rounded-lg bg-slate-900/70 hover:bg-white/10 text-xs whitespace-nowrap">📐 단지</button>
+        </div>
+      </div>
+
+      <!-- Horizontal Scrollable Tool Cards -->
+      <div class="flex flex-col min-w-0">
+        <div id="toolDock" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+        <div class="hidden md:flex text-[11px] text-[var(--muted-foreground)] mt-1 items-center justify-between gap-4">
+          <span id="toolDescText" class="truncate">클릭 A → 클릭 B로 연속 건설 (또는 드래그) · 우클릭: 취소/회전</span>
+          <span id="chainBadge" class="hidden text-sky-300 font-bold shrink-0">📍 시작점 고정됨 — 끝점 클릭으로 연속 시공 (우클릭 취소)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Cities: Skylines Bottom Console Bar (Responsive Mobile & Desktop!) -->
+    <div class="glass rounded-2xl px-2 md:px-3 py-1.5 shadow-2xl flex items-center justify-between md:justify-center gap-1.5 md:gap-3 w-full md:w-auto max-w-[98vw] pointer-events-auto">
+      <!-- 1. Desktop Speed & Day/Night Pod (>= md) -->
+      <div class="hidden md:flex items-center gap-1.5 pr-2.5 border-r border-[var(--border)] shrink-0">
+        <div class="flex items-center bg-slate-900/70 rounded-xl p-0.5 gap-0.5 border border-[var(--border)]">
+          <button data-speed="0" class="spd-btn px-2 py-1 rounded-lg text-xs hover:bg-white/10" title="일시정지 (Space)">⏸</button>
+          <button data-speed="1" class="spd-btn px-2 py-1 rounded-lg text-xs bg-sky-500 text-slate-950 font-bold" title="1배속 (1)">▶</button>
+          <button data-speed="2" class="spd-btn px-2 py-1 rounded-lg text-xs hover:bg-white/10" title="2배속 (2)">⏩</button>
+          <button data-speed="3" class="spd-btn px-2 py-1 rounded-lg text-xs hover:bg-white/10" title="3배속 (3)">⏭</button>
+        </div>
+        <button id="btnLight" class="px-2 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-[var(--border)] whitespace-nowrap" title="낮/노을/야경/자동 순환">☀️ 낮</button>
+      </div>
+
+      <!-- 2. City KPIs (Desktop) + RCI Demand Meter (Always visible!) -->
+      <div class="flex items-center gap-2 md:gap-2.5 pr-1.5 md:pr-2.5 border-r border-[var(--border)] tabular-nums shrink-0">
+        <div class="hidden xl:block">
+          <div id="hudCityName" class="font-bold text-xs tracking-tight whitespace-nowrap">네오 메가폴리스</div>
+          <div id="hudMilestone" class="text-[11px] text-[var(--muted-foreground)] whitespace-nowrap">240일차</div>
+        </div>
+        <div class="hidden md:block">
+          <div id="hudMoney" class="font-bold text-sm text-amber-300 leading-tight whitespace-nowrap">₩0</div>
+          <div id="hudNet" class="text-[11px] font-semibold text-emerald-400 leading-tight whitespace-nowrap">+0/일</div>
+        </div>
+        <div class="hidden md:block">
+          <div id="hudPop" class="font-bold text-sm text-emerald-400 leading-tight whitespace-nowrap">0명</div>
+          <div class="text-[11px] text-[var(--muted-foreground)] leading-tight whitespace-nowrap">😊<span id="hudHappy">76%</span> · 🚗<span id="hudTraffic">100%</span></div>
+        </div>
+        <!-- Classic 3-Bar RCI Demand -->
+        <div class="flex items-end gap-0.5 md:gap-1" title="RCI 수요 (주거 / 상업 / 산업·오피스)">
+          <div class="flex flex-col items-center">
+            <div class="w-2 md:w-2.5 h-6 md:h-7 bg-slate-800 rounded-sm overflow-hidden flex items-end"><div id="rciR" class="w-full bg-emerald-400 transition-all" style="height:60%"></div></div>
+            <span class="text-[10px] font-bold text-emerald-400">R</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <div class="w-2 md:w-2.5 h-6 md:h-7 bg-slate-800 rounded-sm overflow-hidden flex items-end"><div id="rciC" class="w-full bg-sky-400 transition-all" style="height:45%"></div></div>
+            <span class="text-[10px] font-bold text-sky-400">C</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <div class="w-2 md:w-2.5 h-6 md:h-7 bg-slate-800 rounded-sm overflow-hidden flex items-end"><div id="rciI" class="w-full bg-amber-400 transition-all" style="height:55%"></div></div>
+            <span class="text-[10px] font-bold text-amber-400">I</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Iconic Circular Category Icons (Horizontally scrollable on ultra-small phones) -->
+      <div id="catTabs" class="flex items-center gap-1 md:gap-1.5 overflow-x-auto no-scrollbar py-0.5"></div>
+
+      <!-- 4. Desktop Management Modals (>= md) + Inspect -->
+      <div class="hidden md:flex items-center gap-1 pl-2 border-l border-[var(--border)] shrink-0">
+        <button id="btnOpenEconomy" class="px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)] whitespace-nowrap" title="재정·세율·통계 그래프">📊 재정</button>
+        <button id="btnOpenSectors" class="px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)] text-emerald-300 whitespace-nowrap" title="25개 광역 부지 & 특화 지구">🗺️ 부지</button>
+        <button id="btnOpenPolicies" class="px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)] whitespace-nowrap" title="시정 정책">📜 정책</button>
+        <button id="btnQuickInspect" class="tool-btn px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)]" title="조회 모드 (V)">🔍</button>
+      </div>
+
+      <!-- 5. Undo + Iconic Circular Red Bulldoze Button (Thumb-sized on Mobile!) -->
+      <div class="flex items-center gap-1 md:gap-1.5 pl-1.5 md:pl-2 border-l border-[var(--border)] shrink-0">
+        <button id="btnUndo" class="w-9 h-9 md:w-9 md:h-9 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-[var(--border)] flex items-center justify-center text-sm disabled:opacity-35 transition active:scale-95" title="실행취소 (Ctrl+Z)" disabled>↩️</button>
+        <button id="btnQuickBulldoze" class="bulldoze-circle w-10 h-10 rounded-full bg-rose-500/25 hover:bg-rose-500/45 border-2 border-rose-400/70 text-rose-200 flex items-center justify-center text-base shadow-lg transition active:scale-95" title="철거 도구 (B)">🚜</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Hidden Utility Stat Mirrors -->
+  <span id="hudPower" class="hidden"></span>
+  <span id="hudWater" class="hidden"></span>
+
+  <!-- MODAL 1: Economy, Taxes, Budgets & Multi-Line City Statistics Chart -->
+  <div id="modalEconomy" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/65 p-3">
+    <div class="glass rounded-2xl w-full max-w-2xl p-4 shadow-2xl max-h-[88dvh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-3">
+        <h2 class="font-bold text-base">📊 도시 재정 & 성장 통계 그래프</h2>
+        <button data-close-modal="modalEconomy" class="px-2.5 py-1 rounded hover:bg-white/10">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="space-y-3">
+          <div class="bg-slate-900/60 rounded-xl p-3 border border-[var(--border)]">
+            <div class="font-bold text-xs text-sky-300 mb-2">세율 조정 (5% ~ 18%)</div>
+            <div id="taxSliders" class="space-y-2"></div>
+          </div>
+          <div class="bg-slate-900/60 rounded-xl p-3 border border-[var(--border)]">
+            <div class="font-bold text-xs text-emerald-300 mb-2">공공 예산 배분 (50% ~ 150%)</div>
+            <div id="budgetSliders" class="space-y-2"></div>
+          </div>
+          <div class="bg-slate-900/60 rounded-xl p-3 border border-[var(--border)] flex items-center justify-between">
+            <div>
+              <div class="font-bold text-xs">시립 채권 대출</div>
+              <div id="loanStatus" class="text-[11px] text-[var(--muted-foreground)]">대출 잔액: ₩0</div>
+            </div>
+            <button id="btnTakeLoan" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-400/40 font-bold">+₩25,000</button>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="bg-slate-900/60 rounded-xl p-3 border border-[var(--border)]">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-bold text-xs text-sky-300">📈 도시 성장 트렌드</span>
+              <span class="text-[11px] text-[var(--muted-foreground)]">
+                <span class="text-emerald-400">●인구</span>
+                <span class="text-amber-300 ml-1.5">●순수익</span>
+                <span class="text-sky-400 ml-1.5">●교통</span>
+              </span>
+            </div>
+            <canvas id="statsChartCanvas" width="300" height="175" class="w-full rounded-lg bg-slate-950/70 border border-[var(--border)]"></canvas>
+          </div>
+          <div id="econSummary" class="bg-slate-900/60 rounded-xl p-3 border border-[var(--border)] space-y-1.5 text-xs tabular-nums"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Sectors & District Specializations -->
+  <div id="modalSectors" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/65 p-3">
+    <div class="glass rounded-2xl w-full max-w-2xl p-4 shadow-2xl max-h-[88dvh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-3">
+        <div>
+          <h2 class="font-bold text-base">🗺️ 25개 광역 부지 확장 & 특화 지구</h2>
+          <p class="text-[11px] text-[var(--muted-foreground)]">미개방 구역을 탭해 매입하거나 특화 지구(IT·에코·관광·항만)를 지정하세요!</p>
+        </div>
+        <button data-close-modal="modalSectors" class="px-2.5 py-1 rounded hover:bg-white/10">✕</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div id="sectorGrid" class="grid grid-cols-5 gap-1.5"></div>
+        <div class="bg-slate-900/60 rounded-xl p-3 border border-[var(--border)] space-y-2">
+          <div class="font-bold text-xs text-sky-300" id="selSectorTitle">구역을 선택하세요</div>
+          <div id="specButtons" class="space-y-1.5"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: City Policies -->
+  <div id="modalPolicies" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/65 p-3">
+    <div class="glass rounded-2xl w-full max-w-lg p-4 shadow-2xl max-h-[88dvh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-2 mb-3">
+        <h2 class="font-bold text-base">📜 메트로폴리스 시정 정책</h2>
+        <button data-close-modal="modalPolicies" class="px-2.5 py-1 rounded hover:bg-white/10">✕</button>
+      </div>
+      <div id="policyList" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

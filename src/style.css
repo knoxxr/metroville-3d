@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b1120;
+  --content: #0f172a;
+  --card: #0f172a;
+  --border: rgba(148, 163, 184, 0.24);
+  --card-border: rgba(148, 163, 184, 0.22);
+  --foreground: #f1f5f9;
+  --muted-foreground: #94a3b8;
+  --primary: #38bdf8;
+  --primary-foreground: #082f49;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+}
+
+#glCanvas {
+  touch-action: none;
+}
+
+.glass {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.tool-btn.active {
+  border-color: var(--primary) !important;
+  background: rgba(56, 189, 248, 0.24) !important;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.55);
+}
+
+.view-btn.active,
+.brush-btn.active,
+.rmode-btn.active,
+.mcam-btn.active {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  font-weight: 700;
+}
+
+.cat-circle.active {
+  background: linear-gradient(180deg, #38bdf8, #0284c7) !important;
+  color: #082f49 !important;
+  border-color: #7dd3fc !important;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+  transform: translateY(-2px);
+}
+
+.bulldoze-circle.active {
+  background: linear-gradient(180deg, #f43f5e, #be123c) !important;
+  color: #fff !important;
+  border-color: #fda4af !important;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.7);
+  transform: scale(1.06);
+}
+
+.safe-top {
+  top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+}

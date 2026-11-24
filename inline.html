@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>메트로빌 3D — Three.js 인라인 프리뷰</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--foreground, #f1f5f9);
+      user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    }
+    #inlineCanvas { touch-action: none; }
+    .i-btn.active {
+      background: var(--primary, #38bdf8) !important;
+      color: var(--primary-foreground, #082f49) !important;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-0 m-0 text-xs">
+  <div class="w-full space-y-1.5 py-1">
+    <!-- Compact Top Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-[var(--card-border)]">
+      <div class="flex items-center gap-2 tabular-nums">
+        <span class="font-bold text-xs">🏙️ 메트로빌 3D</span>
+        <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400 font-semibold text-[11px]">Three.js PBR · Bloom</span>
+        <span id="iPop" class="font-bold text-emerald-400">0명</span>
+        <span id="iMoney" class="font-bold text-amber-400">₩0</span>
+        <span id="iTrf" class="text-sky-400 font-semibold">🚗 100%</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <span id="iQuest" class="hidden sm:inline px-2 py-0.5 rounded-full bg-slate-800/70 text-[11px] text-sky-300 border border-[var(--card-border)]">🎯 미션</span>
+        <button id="iLight" class="px-2 py-0.5 rounded-lg border border-[var(--card-border)] hover:bg-white/10">☀️ 낮</button>
+        <button id="iView" class="px-2 py-0.5 rounded-lg border border-[var(--card-border)] hover:bg-white/10">👁️ 기본</button>
+      </div>
+    </div>
+
+    <!-- 3D Three.js Viewport (Fixed compact height <= 330px so total widget <= 435px!) -->
+    <div class="relative w-full h-[330px] rounded-xl overflow-hidden border border-[var(--card-border)] bg-slate-950">
+      <canvas id="inlineCanvas" class="block w-full h-full cursor-crosshair"></canvas>
+      <!-- Floating Snap & Cost Telemetry Badge -->
+      <div id="iCursorTag" class="hidden absolute pointer-events-none z-20 px-2 py-1 rounded-lg bg-slate-900/90 border border-sky-400/60 text-[11px] text-slate-100 shadow-lg">
+        <div id="iTagMain" class="font-bold text-sky-300"></div>
+        <div id="iTagSub" class="text-[10px] text-slate-300"></div>
+      </div>
+      <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-slate-900/75 text-[11px] text-slate-200 pointer-events-none">
+        좌클릭 드래그: 스냅 건설 · 우클릭 드래그: 3D 회전 · 휠: 줌
+      </div>
+    </div>
+
+    <!-- Compact Build Toolbar -->
+    <div class="flex flex-wrap items-center justify-between gap-1.5 pt-0.5">
+      <div id="iTools" class="flex flex-wrap items-center gap-1"></div>
+      <span id="iStatus" class="text-[11px] text-[var(--muted-foreground)] truncate max-w-[240px]">도로·수도관·송전선 자동 스냅 지원</span>
+    </div>
+  </div>
+  <script type="module" src="/src/inline.ts"></script>
+</body>
+</html>
