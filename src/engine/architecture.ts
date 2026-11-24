@@ -137,29 +137,27 @@ export function populateCityAndNature(
   const g = state.grid;
   const isR = (x: number, y: number) => inBounds(x, y) && isRoadType(g[y][x].building?.type);
 
-  const OAK_COLS = [0x3d5c35, 0x4c693d, 0x334f2e, 0x5c7344, 0x697848];
-  const ACCENT_COLS = [0x9e5f30, 0xab6e35, 0xc28a9a, 0x8f7137];
-  const PINE_COLS = [0x243e29, 0x2d4832, 0x22392b, 0x345036];
-  const ROCK_COLS = [0x7c7972, 0x6b6e6d, 0x5d5b56, 0x8b867c];
+  const OAK_COLS = [0x92ad7a, 0xa2b886, 0x829e6e, 0xadbd84, 0x99ab78];
+  const ACCENT_COLS = [0xd4965d, 0xc98253, 0xd9a8b4, 0xc7a85c];
+  const PINE_COLS = [0x6f9473, 0x5d8265, 0x7a9c7a, 0x53755c];
+  const ROCK_COLS = [0x9c9890, 0x8b8e8c, 0x7d7a74, 0xa8a296];
 
   const addBroadleaf = (px: number, py: number, pz: number, sc: number, seed: number, allowAccent = true) => {
-    push(B.bTreeTrunk, px, py + 0.17 * sc, pz, 0.08 * sc, 0.36 * sc, 0.08 * sc, 0, 0x4a3b30);
-    const isAccent = allowAccent && seed > 0.93;
+    push(B.bTreeTrunk, px, py + 0.2 * sc, pz, 0.08 * sc, 0.42 * sc, 0.08 * sc, 0, 0x5c493b);
+    const isAccent = allowAccent && seed > 0.92;
     const baseCol = isAccent
       ? ACCENT_COLS[Math.floor(seed * 97) % ACCENT_COLS.length]
       : OAK_COLS[Math.floor(seed * 100) % OAK_COLS.length];
-    const hiCol = isAccent ? 0xb87b42 : 0x5e7c47;
-    push(B.bBroadleaf, px, py + 0.44 * sc, pz, 0.58 * sc, 0.48 * sc, 0.58 * sc, seed * 6.2, baseCol);
-    push(B.bBroadleaf, px + 0.14 * sc, py + 0.56 * sc, pz - 0.1 * sc, 0.42 * sc, 0.38 * sc, 0.42 * sc, seed * 3.1, hiCol);
-    push(B.bBroadleaf, px - 0.12 * sc, py + 0.49 * sc, pz + 0.11 * sc, 0.38 * sc, 0.34 * sc, 0.38 * sc, seed * 1.7, baseCol);
+    const hiCol = isAccent ? 0xe0ab72 : 0xb2c98f;
+    push(B.bBroadleaf, px, py + 0.52 * sc, pz, 0.78 * sc, 0.68 * sc, 0.78 * sc, seed * 6.2, baseCol);
+    push(B.bBroadleaf, px + 0.14 * sc, py + 0.62 * sc, pz - 0.1 * sc, 0.54 * sc, 0.48 * sc, 0.54 * sc, seed * 3.1, hiCol);
   };
 
   const addAlpinePine = (px: number, py: number, pz: number, sc: number, seed: number) => {
     const col = PINE_COLS[Math.floor(seed * 83) % PINE_COLS.length];
-    push(B.bTreeTrunk, px, py + 0.18 * sc, pz, 0.08 * sc, 0.36 * sc, 0.08 * sc, 0, 0x3e3028);
-    push(B.bPine, px, py + 0.52 * sc, pz, 0.62 * sc, 0.6 * sc, 0.62 * sc, seed * 4, col);
-    push(B.bPine, px, py + 0.84 * sc, pz, 0.46 * sc, 0.54 * sc, 0.46 * sc, seed * 2.5, col);
-    push(B.bPine, px, py + 1.12 * sc, pz, 0.3 * sc, 0.46 * sc, 0.3 * sc, seed * 1.1, 0x365438);
+    push(B.bTreeTrunk, px, py + 0.22 * sc, pz, 0.075 * sc, 0.44 * sc, 0.075 * sc, 0, 0x4d3c30);
+    // Single multi-tiered feathered conifer spruce crown (4 horizontal bough whorls + 3 crossed spire silhouettes)
+    push(B.bPine, px, py + 0.78 * sc, pz, 0.88 * sc, 1.32 * sc, 0.88 * sc, seed * 6.28, col);
   };
 
   const addBoulderCluster = (px: number, py: number, pz: number, sc: number, seed: number) => {

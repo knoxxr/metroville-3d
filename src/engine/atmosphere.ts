@@ -13,13 +13,13 @@ export function buildProceduralEnvironment(
   topHex: number,
   horizonHex: number,
   groundHex: number,
-  sunIntensity = 2.2
+  sunIntensity = 2.4
 ): THREE.Texture {
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
 
   const envScene = new THREE.Scene();
-  const skyGeo = new THREE.SphereGeometry(20, 24, 16);
+  const skyGeo = new THREE.SphereGeometry(24, 36, 24);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     uniforms: {
@@ -41,20 +41,48 @@ export function buildProceduralEnvironment(
       uniform vec3 uGnd;
       uniform float uSunI;
       varying vec3 vDir;
+
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1,0)), f.x), mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.05; a *= 0.5; }
+        return v;
+      }
+
       void main() {
         vec3 d = normalize(vDir);
-        vec3 col = d.y >= 0.0
-          ? mix(uHor, uTop, pow(d.y, 0.55))
-          : mix(uHor * 0.75, uGnd, pow(-d.y, 0.5));
-        float sunDot = max(dot(d, normalize(vec3(0.55, 0.65, 0.45))), 0.0);
-        col += vec3(1.0, 0.96, 0.85) * pow(sunDot, 24.0) * uSunI;
+        vec3 col;
+        if (d.y >= 0.0) {
+          col = mix(uHor, uTop, pow(d.y, 0.52));
+          // Crisp cumulus cloud deck in reflection cubemap (makes glass skyscrapers shine like real glass!)
+          vec2 cuv = d.xz / (d.y + 0.22) * 1.4;
+          float cl = fbm(cuv * 1.8);
+          float cloudMask = smoothstep(0.46, 0.76, cl) * smoothstep(0.02, 0.22, d.y);
+          vec3 cloudCol = mix(uHor * 1.15, vec3(1.15, 1.12, 1.08), 0.72);
+          col = mix(col, cloudCol, cloudMask * 0.75);
+        } else {
+          // Ground & subtle urban horizon bounce
+          float horizonBand = exp(d.y * 10.0);
+          col = mix(uGnd, uHor * 0.68, horizonBand);
+          // Subtle city light/structure bounce noise
+          float cityNoise = noise(d.xz * 12.0);
+          col *= 0.85 + 0.3 * cityNoise;
+        }
+        vec3 sunDir = normalize(vec3(0.55, 0.62, 0.44));
+        float sunDot = max(dot(d, sunDir), 0.0);
+        col += vec3(1.0, 0.95, 0.84) * (pow(sunDot, 16.0) * 0.45 + pow(sunDot, 96.0) * uSunI * 1.4);
         gl_FragColor = vec4(col, 1.0);
       }
     `,
   });
   envScene.add(new THREE.Mesh(skyGeo, skyMat));
 
-  const rt = pmrem.fromScene(envScene, 0.02);
+  const rt = pmrem.fromScene(envScene, 0.015);
   skyGeo.dispose();
   skyMat.dispose();
   pmrem.dispose();

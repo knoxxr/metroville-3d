@@ -3,10 +3,14 @@ import * as THREE from 'three';
 export interface PBRTextureSet {
   terrainGrass: THREE.CanvasTexture;
   terrainBump: THREE.CanvasTexture;
+  terrainNormal: THREE.CanvasTexture;
   foliageAlbedo: THREE.CanvasTexture;
   foliageBump: THREE.CanvasTexture;
+  foliageCardRGBA: THREE.CanvasTexture;
+  pineFrondRGBA: THREE.CanvasTexture;
   rockAlbedo: THREE.CanvasTexture;
   rockBump: THREE.CanvasTexture;
+  rockNormal: THREE.CanvasTexture;
   plazaTile: THREE.CanvasTexture;
   roofConcrete: THREE.CanvasTexture;
   roadStraight: THREE.CanvasTexture;
@@ -16,6 +20,7 @@ export interface PBRTextureSet {
   roadCross: THREE.CanvasTexture;
   roundabout: THREE.CanvasTexture;
   roadBump: THREE.CanvasTexture;
+  roadNormal: THREE.CanvasTexture;
   resLow: THREE.CanvasTexture;
   resLowEmi: THREE.CanvasTexture;
   resHigh: THREE.CanvasTexture;
@@ -36,7 +41,9 @@ export interface PBRTextureSet {
   civic: THREE.CanvasTexture;
   solar: THREE.CanvasTexture;
   buildingBump: THREE.CanvasTexture;
+  buildingNormal: THREE.CanvasTexture;
   buildingRough: THREE.CanvasTexture;
+  buildingMetal: THREE.CanvasTexture;
 }
 
 function makeCanvas(size = 512): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -60,6 +67,60 @@ function toTex(c: HTMLCanvasElement, isSRGB = true, repeat = false, repeatScale 
   }
   tex.needsUpdate = true;
   return tex;
+}
+
+/**
+ * Converts a grayscale height canvas into a true Tangent-Space RGB Normal Map
+ * using a seamless wrapping Sobel kernel so PBR lights catch crisp 3D relief!
+ */
+function heightToNormalTexture(
+  src: HTMLCanvasElement,
+  strength = 2.2,
+  repeat = true,
+  repeatScale = 1
+): THREE.CanvasTexture {
+  const w = src.width;
+  const h = src.height;
+  const sctx = src.getContext('2d')!;
+  const srcData = sctx.getImageData(0, 0, w, h).data;
+  const [nc, nctx] = makeCanvas(w);
+  nc.height = h;
+  const out = nctx.createImageData(w, h);
+  const dst = out.data;
+
+  const sample = (x: number, y: number) => {
+    const wx = ((x % w) + w) % w;
+    const wy = ((y % h) + h) % h;
+    return srcData[(wy * w + wx) * 4] / 255;
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const tl = sample(x - 1, y - 1);
+      const t = sample(x, y - 1);
+      const tr = sample(x + 1, y - 1);
+      const l = sample(x - 1, y);
+      const r = sample(x + 1, y);
+      const bl = sample(x - 1, y + 1);
+      const b = sample(x, y + 1);
+      const br = sample(x + 1, y + 1);
+
+      const dX = (tr + 2 * r + br - (tl + 2 * l + bl)) * strength;
+      const dY = (bl + 2 * b + br - (tl + 2 * t + tr)) * strength;
+      const nx = -dX;
+      const ny = dY;
+      const nz = 1.0;
+      const invLen = 1.0 / Math.hypot(nx, ny, nz);
+
+      const o = (y * w + x) * 4;
+      dst[o] = Math.round((nx * invLen * 0.5 + 0.5) * 255);
+      dst[o + 1] = Math.round((ny * invLen * 0.5 + 0.5) * 255);
+      dst[o + 2] = Math.round((nz * invLen * 0.5 + 0.5) * 255);
+      dst[o + 3] = 255;
+    }
+  }
+  nctx.putImageData(out, 0, 0);
+  return toTex(nc, false, repeat, repeatScale);
 }
 
 function hash2(a: number, b: number): number {
@@ -318,6 +379,87 @@ export function createPBRTextures(): PBRTextureSet {
     flb.fill();
   }
 
+  // Alpha-Tested Botanical Broadleaf Leaf-Cluster Card (real transparent foliage gaps!)
+  const [fcardC, fc] = makeCanvas(256);
+  fc.clearRect(0, 0, 256, 256);
+  // Subtle interior woody twigs
+  fc.strokeStyle = 'rgba(72, 56, 40, 0.85)';
+  fc.lineWidth = 3;
+  for (let b = 0; b < 6; b++) {
+    const ang = (b / 6) * Math.PI * 2 + 0.3;
+    fc.beginPath();
+    fc.moveTo(128, 128);
+    fc.lineTo(128 + Math.cos(ang) * 76, 128 + Math.sin(ang) * 76);
+    fc.stroke();
+  }
+  // 240 layered botanical leaves clustered organically in an airy oval silhouette
+  for (let i = 0; i < 240; i++) {
+    const a = hash2(i, 1.7) * Math.PI * 2;
+    const rad = Math.pow(hash2(i, 3.9), 0.58) * 106;
+    const px = 128 + Math.cos(a) * rad;
+    const py = 128 + Math.sin(a) * rad;
+    const lr = 8 + hash2(i, 5.2) * 11;
+    const rot = a + (hash2(i, 7.1) - 0.5) * 1.4;
+    const shade = 0.62 + (rad / 110) * 0.32 + hash2(i, 8.8) * 0.22;
+    const r = Math.min(255, Math.round(172 * shade));
+    const g = Math.min(255, Math.round(196 * shade));
+    const b = Math.min(255, Math.round(148 * shade));
+    fc.fillStyle = `rgb(${r},${g},${b})`;
+    fc.beginPath();
+    fc.ellipse(px, py, lr, lr * 0.58, rot, 0, Math.PI * 2);
+    fc.fill();
+    // Delicate central leaf vein highlight
+    fc.strokeStyle = `rgba(245,250,225,0.22)`;
+    fc.lineWidth = 1;
+    fc.beginPath();
+    fc.moveTo(px - Math.cos(rot) * lr * 0.7, py - Math.sin(rot) * lr * 0.7);
+    fc.lineTo(px + Math.cos(rot) * lr * 0.7, py + Math.sin(rot) * lr * 0.7);
+    fc.stroke();
+  }
+
+  // Alpha-Tested Feathered Conifer / Spruce Pine Branch Spire (real needle silhouettes!)
+  const [pcardC, pc] = makeCanvas(256);
+  pc.clearRect(0, 0, 256, 256);
+  // Central dark timber stem
+  pc.strokeStyle = '#3b2e23';
+  pc.lineWidth = 6;
+  pc.beginPath();
+  pc.moveTo(128, 252);
+  pc.lineTo(128, 18);
+  pc.stroke();
+  // Tiered drooping pine boughs filled with fine feathered needle sprays
+  for (let row = 0; row < 28; row++) {
+    const t = row / 27; // 0 at bottom -> 1 at top spire tip
+    const cy = 242 - t * 224;
+    const maxSpan = (1.0 - t * 0.88) * 112 + 10;
+    const branches = 5 + Math.floor((1 - t) * 5);
+    for (let k = 0; k < branches; k++) {
+      const frac = (k / Math.max(1, branches - 1)) * 2 - 1; // -1 .. +1
+      const jitter = (hash2(row * 13 + k, 4.1) - 0.5) * 14;
+      const bx = 128 + frac * maxSpan + jitter;
+      const by = cy + Math.abs(frac) * (1 - t) * 26 + (hash2(row, k + 2.3) - 0.5) * 8;
+      // Needle spray cluster along bough
+      const shade = 0.56 + t * 0.28 + Math.abs(frac) * 0.22 + hash2(row + k, 9.1) * 0.16;
+      const r = Math.min(255, Math.round(140 * shade));
+      const g = Math.min(255, Math.round(176 * shade));
+      const b = Math.min(255, Math.round(138 * shade));
+      pc.strokeStyle = `rgb(${r},${g},${b})`;
+      pc.lineWidth = 2.4;
+      for (let n = 0; n < 7; n++) {
+        const na = Math.atan2(by - cy, bx - 128) + (hash2(row * 31 + n, k * 7) - 0.5) * 1.1;
+        const nLen = 10 + hash2(n, row + 1.5) * 14 * (1 - t * 0.45);
+        pc.beginPath();
+        pc.moveTo(bx, by);
+        pc.lineTo(bx + Math.cos(na) * nLen, by + Math.sin(na) * nLen);
+        pc.stroke();
+      }
+      pc.fillStyle = `rgb(${r},${g},${b})`;
+      pc.beginPath();
+      pc.ellipse(bx, by, 10 * (1 - t * 0.35), 5.5, frac * 0.5, 0, Math.PI * 2);
+      pc.fill();
+    }
+  }
+
   // Craggy Granite Rock PBR Albedo & Bump
   const [rkc, rk] = makeCanvas(256);
   const [rkbc, rkb] = makeCanvas(256);
@@ -442,48 +584,55 @@ export function createPBRTextures(): PBRTextureSet {
     rbmp.fillRect(hash2(i, 1.7) * 256, hash2(i, 3.9) * 256, 2, 2);
   }
 
-  const [bbmpC, bbmp] = makeCanvas(512);
-  const [brghC, brgh] = makeCanvas(512);
-  bbmp.fillStyle = '#b0b0b0'; bbmp.fillRect(0, 0, 512, 512);
-  brgh.fillStyle = '#d0d0d0'; brgh.fillRect(0, 0, 512, 512);
-  bbmp.fillStyle = '#2e2e2e';
-  brgh.fillStyle = '#181818';
+  const [bbmpC, bbmp] = makeCanvas(256);
+  const [brghC, brgh] = makeCanvas(256);
+  const [bmetC, bmet] = makeCanvas(256);
+  bbmp.fillStyle = '#c8c8c8'; bbmp.fillRect(0, 0, 256, 256);
+  brgh.fillStyle = '#e0e0e0'; brgh.fillRect(0, 0, 256, 256); // Matte masonry mullions
+  bmet.fillStyle = '#121212'; bmet.fillRect(0, 0, 256, 256); // Non-metallic stone/concrete frame
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 8; c++) {
-      const wx = c * (512 / 8) + 6;
-      const wy = r * (512 / 10) + 8;
-      bbmp.fillRect(wx, wy, 512 / 8 - 12, 512 / 10 - 15);
-      brgh.fillRect(wx, wy, 512 / 8 - 12, 512 / 10 - 15);
+      const wx = c * (256 / 8) + 3;
+      const wy = r * (256 / 10) + 4;
+      const ww = 256 / 8 - 6;
+      const wh = 256 / 10 - 7.5;
+      // Recessed glossy reflective glass pane!
+      bbmp.fillStyle = '#242424';
+      bbmp.fillRect(wx, wy, ww, wh);
+      brgh.fillStyle = '#141414'; // Mirror-smooth architectural glass
+      brgh.fillRect(wx, wy, ww, wh);
+      bmet.fillStyle = '#e8e8e8'; // High Fresnel sky/cloud reflection on glass
+      bmet.fillRect(wx, wy, ww, wh);
     }
   }
 
-  // 8 Photorealistic Desaturated Architectural PBR Facades + Warm/Cool Night Emissives!
-  const [resLow, resLowEmi] = createFacadePair('#e2d9c9', '#bfb39e', '#9c8f7b', '#4d5b69', '#1e2730', '#fef08a', '#fde68a', 4, 4, 1.1, 'brick');
-  const [resHigh, resHighEmi] = createFacadePair('#cfd5dc', '#9aa4b0', '#7e8894', '#4e6378', '#1b2530', '#fed7aa', '#fef08a', 6, 9, 2.3, 'modern');
-  const [comHigh, comHighEmi] = createFacadePair('#41566c', '#1c2733', '#8c96a3', '#7d99b3', '#162330', '#fef08a', '#bae6fd', 8, 10, 3.7, 'glass');
-  const [office, officeEmi] = createFacadePair('#365263', '#162530', '#a4b0bc', '#7ca1b8', '#142430', '#e0f2fe', '#bae6fd', 8, 10, 5.1, 'glass');
-  const [goldGlass, goldGlassEmi] = createFacadePair('#8d7453', '#362b1e', '#b5a387', '#c7b08b', '#261e14', '#fef08a', '#fed7aa', 8, 10, 6.4, 'glass');
-  const [modernWhite, modernWhiteEmi] = createFacadePair('#e6e8eb', '#bfc5cc', '#d4d9df', '#4e677a', '#16222c', '#fef3c7', '#e0f2fe', 6, 9, 7.8, 'modern');
-  const [terracottaBrick, terracottaBrickEmi] = createFacadePair('#9c5644', '#6d392c', '#c2b6a3', '#44505c', '#1a222b', '#fde047', '#fed7aa', 5, 7, 8.9, 'brick');
-  const [artDecoStone, artDecoStoneEmi] = createFacadePair('#d5cfc3', '#9d9586', '#e3ddd1', '#45515e', '#182029', '#fef08a', '#fde68a', 6, 9, 9.7, 'deco');
+  // 8 Sunlit Photorealistic Architectural PBR Facades (crisp limestone, sky glass, champagne bronze, terracotta)
+  const [resLow, resLowEmi] = createFacadePair('#eae2d3', '#cdc2ae', '#aba08e', '#586d80', '#24313d', '#fef08a', '#fde68a', 4, 4, 1.1, 'brick');
+  const [resHigh, resHighEmi] = createFacadePair('#dde2e8', '#b4bec9', '#8e98a4', '#5c7891', '#212e3c', '#fed7aa', '#fef08a', 6, 9, 2.3, 'modern');
+  const [comHigh, comHighEmi] = createFacadePair('#557391', '#273a4e', '#a9b4c0', '#96b9d6', '#1e3347', '#fef08a', '#bae6fd', 8, 10, 3.7, 'glass');
+  const [office, officeEmi] = createFacadePair('#4b6c80', '#213647', '#bcc6d1', '#95bed6', '#1d3242', '#e0f2fe', '#bae6fd', 8, 10, 5.1, 'glass');
+  const [goldGlass, goldGlassEmi] = createFacadePair('#ab916e', '#4f402e', '#cbbba1', '#dec8a4', '#33281b', '#fef08a', '#fed7aa', 8, 10, 6.4, 'glass');
+  const [modernWhite, modernWhiteEmi] = createFacadePair('#f0f2f4', '#cfd5dc', '#dce1e6', '#5c7c94', '#1d2d3b', '#fef3c7', '#e0f2fe', 6, 9, 7.8, 'modern');
+  const [terracottaBrick, terracottaBrickEmi] = createFacadePair('#b56854', '#854738', '#d0c4b2', '#526270', '#212c36', '#fde047', '#fed7aa', 5, 7, 8.9, 'brick');
+  const [artDecoStone, artDecoStoneEmi] = createFacadePair('#e2dcd0', '#b5ada0', '#ece6db', '#536475', '#212c38', '#fef08a', '#fde68a', 6, 9, 9.7, 'deco');
 
   const [indC, ind] = makeCanvas(S);
-  ind.fillStyle = '#7c7770'; ind.fillRect(0, 0, S, S);
+  ind.fillStyle = '#8b867e'; ind.fillRect(0, 0, S, S);
   for (let x = 0; x < S; x += 24) {
-    ind.fillStyle = x % 48 === 0 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.06)';
+    ind.fillStyle = x % 48 === 0 ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.07)';
     ind.fillRect(x, 0, 12, S);
   }
-  ind.fillStyle = '#3a3835'; ind.fillRect(0, S - 92, S, 92);
+  ind.fillStyle = '#403e3b'; ind.fillRect(0, S - 92, S, 92);
   ind.fillStyle = '#c48f2e'; ind.fillRect(0, S - 98, S, 6);
-  ind.fillStyle = '#3e4752';
+  ind.fillStyle = '#485463';
   for (let c = 0; c < 6; c++) ind.fillRect(c * 84 + 12, 42, 62, 54);
 
   const [civC, civ] = makeCanvas(S);
-  civ.fillStyle = '#dcdad4'; civ.fillRect(0, 0, S, S);
-  civ.fillStyle = '#bdb9b0'; civ.fillRect(0, 0, S, 36); civ.fillRect(0, S - 46, S, 46);
+  civ.fillStyle = '#e5e2db'; civ.fillRect(0, 0, S, S);
+  civ.fillStyle = '#c6c2b8'; civ.fillRect(0, 0, S, 36); civ.fillRect(0, S - 46, S, 46);
   for (let c = 0; c < 6; c++) {
-    civ.fillStyle = '#c8c4bc'; civ.fillRect(c * (S / 6) + 8, 36, 18, S - 82);
-    civ.fillStyle = '#2d3f54'; civ.fillRect(c * (S / 6) + 32, 62, 38, S - 134);
+    civ.fillStyle = '#d1cdc4'; civ.fillRect(c * (S / 6) + 8, 36, 18, S - 82);
+    civ.fillStyle = '#364d66'; civ.fillRect(c * (S / 6) + 32, 62, 38, S - 134);
   }
 
   const [solC, sol] = makeCanvas(S);
@@ -499,10 +648,14 @@ export function createPBRTextures(): PBRTextureSet {
   return {
     terrainGrass: toTex(tgc, true, true, 14),
     terrainBump: toTex(tbc, false, true, 14),
+    terrainNormal: heightToNormalTexture(tbc, 1.8, true, 14),
     foliageAlbedo: toTex(flc, true, true),
     foliageBump: toTex(flbc, false, true),
+    foliageCardRGBA: toTex(fcardC, true, false),
+    pineFrondRGBA: toTex(pcardC, true, false),
     rockAlbedo: toTex(rkc, true, true),
     rockBump: toTex(rkbc, false, true),
+    rockNormal: heightToNormalTexture(rkbc, 3.0, true, 1),
     plazaTile: toTex(plc, true, true),
     roofConcrete: toTex(rfc, true, false),
     roadStraight: toTex(r1c),
@@ -512,6 +665,7 @@ export function createPBRTextures(): PBRTextureSet {
     roadCross: toTex(xc),
     roundabout: toTex(rbc),
     roadBump: toTex(rbmpC, false, true),
+    roadNormal: heightToNormalTexture(rbmpC, 1.9, true, 1),
     resLow, resLowEmi,
     resHigh, resHighEmi,
     comHigh, comHighEmi,
@@ -524,6 +678,8 @@ export function createPBRTextures(): PBRTextureSet {
     civic: toTex(civC),
     solar: toTex(solC),
     buildingBump: toTex(bbmpC, false, true),
+    buildingNormal: heightToNormalTexture(bbmpC, 2.8, true, 1),
     buildingRough: toTex(brghC, false, true),
+    buildingMetal: toTex(bmetC, false, true),
   };
 }
