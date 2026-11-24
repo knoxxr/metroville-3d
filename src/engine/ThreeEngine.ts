@@ -34,6 +34,11 @@ import {
   createOrganicBroadleafGeometry,
   createOrganicPineGeometry,
 } from './geometries';
+import {
+  buildConformingRoadMeshes,
+  computeCityElevationField,
+  type CityElevationField,
+} from './roads';
 
 const FilmicGradeShader = {
   uniforms: {
@@ -174,6 +179,7 @@ export class ThreeEngine {
   private waterDirty = true;
   private currentNight = 0;
   private lastDt = 0.016;
+  private elevField: CityElevationField | null = null;
 
   // Reusable AO-baked & organic photorealistic geometries
   private geoUnitBox = createGroundedBoxGeometry();
@@ -564,7 +570,10 @@ export class ThreeEngine {
     this.rotorPositions = [];
     this.fireCoords = [];
 
-    // 1. Build Continuous Smooth Heightfield Terrain with Natural Rolling Elevation & Multi-Biome PBR Grass!
+    // 1. Compute Continuous Step-Free Terrain & Road Heightfield (zero road steps, smooth bridge ramps!)
+    const elev = computeCityElevationField(state);
+    this.elevField = elev;
+
     const V = GRID + 1;
     const tPos = new Float32Array(V * V * 3);
     const tUV = new Float32Array(V * V * 2);
@@ -574,7 +583,6 @@ export class ThreeEngine {
 
     for (let vy = 0; vy < V; vy++) {
       for (let vx = 0; vx < V; vx++) {
-        let sumY = 0;
         let sumR = 0;
         let sumG = 0;
         let sumB = 0;
@@ -583,8 +591,6 @@ export class ThreeEngine {
           const tx = vx + ox;
           const ty = vy + oy;
           if (!inBounds(tx, ty)) continue;
-          const t = state.grid[ty][tx];
-          sumY += sampleNaturalElevation(tx, ty, t.elev, t.terrain === 'water', t.terrain === 'sand');
           cAcc.setHex(this.getTileSurfaceColor(state, tx, ty, activeView));
           sumR += cAcc.r;
           sumG += cAcc.g;
@@ -593,7 +599,7 @@ export class ThreeEngine {
         }
         const i = vy * V + vx;
         tPos[i * 3] = vx - GRID / 2;
-        tPos[i * 3 + 1] = cnt ? sumY / cnt : 0;
+        tPos[i * 3 + 1] = elev.terrainV[i];
         tPos[i * 3 + 2] = vy - GRID / 2;
         tUV[i * 2] = vx / GRID;
         tUV[i * 2 + 1] = vy / GRID;
@@ -747,7 +753,7 @@ export class ThreeEngine {
 
     // 4. Populate Diverse Multi-Archetype Architecture & Realistic Natural Scenery!
     const B = createWorldBuckets();
-    populateCityAndNature(state, activeView, B, this.rotorPositions, this.fireCoords);
+    populateCityAndNature(state, activeView, B, this.rotorPositions, this.fireCoords, elev);
 
     const commitBucket = (
       bucket: InstanceBucket,
@@ -794,21 +800,64 @@ export class ThreeEngine {
       return m;
     };
 
+    // Continuous Step-Free Conforming Road Surfaces, Retaining Curbs & Sloped Bridge Guardrails!
     const roadMat = (map: THREE.Texture) =>
       new THREE.MeshStandardMaterial({
         map,
         bumpMap: this.textures.roadBump,
         bumpScale: 0.032,
+        vertexColors: true,
         roughness: 0.86,
         metalness: 0.05,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       });
 
-    commitBucket(B.bRoad, this.geoRoadPlane, roadMat(this.textures.roadStraight), false, true);
-    commitBucket(B.bAve, this.geoRoadPlane, roadMat(this.textures.avenueStraight), false, true);
-    commitBucket(B.bHwy, this.geoRoadPlane, roadMat(this.textures.highwayStraight), false, true);
-    commitBucket(B.bCorner, this.geoRoadPlane, roadMat(this.textures.roadCorner), false, true);
-    commitBucket(B.bCross, this.geoRoadPlane, roadMat(this.textures.roadCross), false, true);
-    commitBucket(B.bRoundabout, this.geoRoadPlane, roadMat(this.textures.roundabout), false, true);
+    const roadMeshes = buildConformingRoadMeshes(state, activeView, elev);
+    const roadTextures = {
+      road: this.textures.roadStraight,
+      ave: this.textures.avenueStraight,
+      hwy: this.textures.highwayStraight,
+      corner: this.textures.roadCorner,
+      cross: this.textures.roadCross,
+      roundabout: this.textures.roundabout,
+    };
+    (Object.keys(roadTextures) as (keyof typeof roadTextures)[]).forEach((k) => {
+      const geo = roadMeshes.surfaces[k];
+      if (!geo) return;
+      const m = new THREE.Mesh(geo, roadMat(roadTextures[k]));
+      m.receiveShadow = true;
+      this.worldGroup.add(m);
+    });
+    if (roadMeshes.curbsGeo) {
+      const curbMesh = new THREE.Mesh(
+        roadMeshes.curbsGeo,
+        new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          vertexColors: true,
+          roughness: 0.88,
+          metalness: 0.06,
+        })
+      );
+      curbMesh.castShadow = true;
+      curbMesh.receiveShadow = true;
+      this.worldGroup.add(curbMesh);
+    }
+    if (roadMeshes.railsGeo) {
+      const railMesh = new THREE.Mesh(
+        roadMeshes.railsGeo,
+        new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          vertexColors: true,
+          roughness: 0.56,
+          metalness: 0.25,
+        })
+      );
+      railMesh.castShadow = true;
+      railMesh.receiveShadow = true;
+      this.worldGroup.add(railMesh);
+    }
 
     commitBucket(
       B.bPlaza,
@@ -1122,13 +1171,22 @@ export class ThreeEngine {
       const rz = fx * laneOff;
       const px = wx0 + dx * frac + rx;
       const pz = wz0 + dz * frac + rz;
-      const isBridge = state.grid[y0]?.[x0]?.terrain === 'water';
-      const py = (isBridge ? 0.26 : Math.max(0.05, tileWorldY(state, x0, y0))) + 0.065 * sy;
+      const roadSurfY = this.elevField
+        ? this.elevField.sampleRoadY(px, pz)
+        : state.grid[y0]?.[x0]?.terrain === 'water'
+          ? 0.24
+          : Math.max(0.05, tileWorldY(state, x0, y0));
+      const aheadY = this.elevField
+        ? this.elevField.sampleRoadY(px + fx * 0.22, pz + fz * 0.22)
+        : roadSurfY;
+      const py = roadSurfY + 0.052 * sy;
       const yaw = Math.atan2(dx, dz);
+      const pitch = -Math.atan2(aheadY - roadSurfY, 0.22);
 
-      // Chassis
+      // Chassis hugging sloped asphalt & bridge approach ramps
+      this.dummy.rotation.order = 'YXZ';
       this.dummy.position.set(px, py, pz);
-      this.dummy.rotation.set(0, yaw, 0);
+      this.dummy.rotation.set(pitch, yaw, 0);
       this.dummy.scale.set(sx, sy, sz);
       this.dummy.updateMatrix();
       this.vehicleMesh.setMatrixAt(vCount, this.dummy.matrix);
@@ -1137,28 +1195,30 @@ export class ThreeEngine {
 
       // Tinted upper cabin
       this.dummy.position.set(px - fx * 0.02 * sz, py + 0.08 * sy, pz - fz * 0.02 * sz);
-      this.dummy.rotation.set(0, yaw, 0);
+      this.dummy.rotation.set(pitch, yaw, 0);
       this.dummy.scale.set(sx * 0.92, sy * 0.95, sz * 0.85);
       this.dummy.updateMatrix();
       this.cabinMesh.setMatrixAt(vCount, this.dummy.matrix);
       vCount++;
 
       if (showLights && lightCount < 160) {
+        const slopeDy = (aheadY - roadSurfY) * (0.2 * sz / 0.22);
         // Warm Headlights in front
-        this.dummy.position.set(px + fx * 0.2 * sz, py, pz + fz * 0.2 * sz);
-        this.dummy.rotation.set(0, yaw, 0);
+        this.dummy.position.set(px + fx * 0.2 * sz, py + slopeDy, pz + fz * 0.2 * sz);
+        this.dummy.rotation.set(pitch, yaw, 0);
         this.dummy.scale.set(1, 1, 1);
         this.dummy.updateMatrix();
         this.headlightMesh.setMatrixAt(lightCount, this.dummy.matrix);
 
         // Glowing Red Taillights in back
-        this.dummy.position.set(px - fx * 0.2 * sz, py, pz - fz * 0.2 * sz);
-        this.dummy.rotation.set(0, yaw, 0);
+        this.dummy.position.set(px - fx * 0.2 * sz, py - slopeDy, pz - fz * 0.2 * sz);
+        this.dummy.rotation.set(pitch, yaw, 0);
         this.dummy.scale.set(1, 1, 1);
         this.dummy.updateMatrix();
         this.taillightMesh.setMatrixAt(lightCount, this.dummy.matrix);
         lightCount++;
       }
+      this.dummy.rotation.order = 'XYZ';
     };
 
     for (const v of rt.vehicles) {

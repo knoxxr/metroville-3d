@@ -98,6 +98,8 @@ export function sampleNaturalElevation(x: number, y: number, baseElev: number, i
   return baseElev * 0.4 + roll + outerRise;
 }
 
+import type { CityElevationField } from './roads';
+
 /**
  * Populates all Cities: Skylines GPU-Instanced architecture, diverse building
  * archetypes, natural mixed forests, shoreline boulders, reeds, and outer valley pines.
@@ -107,7 +109,8 @@ export function populateCityAndNature(
   activeView: InfoViewId,
   B: WorldBuckets,
   rotorPositions: THREE.Vector3[],
-  fireCoords: THREE.Vector3[]
+  fireCoords: THREE.Vector3[],
+  elev: CityElevationField
 ) {
   const dummy = new THREE.Object3D();
   const push = (
@@ -184,7 +187,7 @@ export function populateCityAndNature(
       const t = g[y][x];
       const wx = tileWorldX(x);
       const wz = tileWorldZ(y);
-      const wy = sampleNaturalElevation(x, y, t.elev, t.terrain === 'water', t.terrain === 'sand');
+      const wy = elev.tileGroundY[y * GRID + x];
 
       // Natural Scenery on unbuilt tiles: Shoreline Boulders, Reeds, Wildflower Bushes & Multi-Species Forests!
       if (!t.building && !t.zone) {
@@ -219,75 +222,53 @@ export function populateCityAndNature(
       const bt = b.type;
 
       // ---- ROADS, ROUNDABOUTS & STAY-CABLE BRIDGES ----
+      // Continuous road surfaces, sloped concrete curbs, approach ramps & guardrails
+      // are built by buildConformingRoadMeshes() for 0.000m step-free transitions!
       if (isRoadType(bt)) {
         const isBridge = t.terrain === 'water';
-        const ry = isBridge ? 0.22 : wy + 0.045;
+        const ry = elev.roadCenterY[y * GRID + x];
         const nN = isR(x, y - 1);
         const nS = isR(x, y + 1);
         const nW = isR(x - 1, y);
         const nE = isR(x + 1, y);
         const deg = (nN ? 1 : 0) + (nS ? 1 : 0) + (nW ? 1 : 0) + (nE ? 1 : 0);
-        const roadTint =
-          activeView === 'traffic'
-            ? t.congestion > 1.2
-              ? 0xf87171
-              : t.congestion > 0.7
-                ? 0xfbbf24
-                : 0x4ade80
-            : 0xffffff;
+        const horiz = (nE || nW) && !(nN || nS);
 
         if (bt === 'roundabout') {
-          push(B.bRoundabout, wx, ry + 0.005, wz, 1.06, 1, 1.06, 0, roadTint);
-          push(B.bCylinder, wx, ry + 0.07, wz, 0.46, 0.14, 0.46, 0, 0x22c55e);
-          push(B.bCylinder, wx, ry + 0.16, wz, 0.24, 0.08, 0.24, 0, 0x38bdf8);
-          push(B.bBeacon, wx, ry + 0.34, wz, 0.09, 0.26, 0.09, 0, 0xbae6fd);
-          addBroadleaf(wx + 0.15, ry + 0.12, wz + 0.13, 0.34, t.hash, true);
-        } else if (deg >= 3) {
-          push(B.bCross, wx, ry, wz, 1, 1, 1, 0, roadTint);
-        } else if (deg === 2 && ((nN && nE) || (nE && nS) || (nS && nW) || (nW && nN))) {
-          let rot = 0;
-          if (nE && nS) rot = 0;
-          else if (nS && nW) rot = -Math.PI / 2;
-          else if (nW && nN) rot = Math.PI;
-          else if (nN && nE) rot = Math.PI / 2;
-          push(B.bCorner, wx, ry, wz, 1, 1, 1, rot, roadTint);
-        } else {
-          const horiz = (nE || nW) && !(nN || nS);
-          const rot = horiz ? Math.PI / 2 : 0;
-          const targetBucket = bt === 'highway' ? B.bHwy : bt === 'avenue' ? B.bAve : B.bRoad;
-          push(targetBucket, wx, ry, wz, 1, 1, 1, rot, roadTint);
-          if (!isBridge && bt === 'avenue' && (x + y) % 2 === 0) {
+          push(B.bCylinder, wx, ry + 0.05, wz, 0.46, 0.12, 0.46, 0, 0x4b6e3f);
+          push(B.bCylinder, wx, ry + 0.13, wz, 0.24, 0.08, 0.24, 0, 0x3b7a94);
+          push(B.bBeacon, wx, ry + 0.3, wz, 0.08, 0.24, 0.08, 0, 0xbae6fd);
+          addBroadleaf(wx + 0.14, ry + 0.1, wz + 0.12, 0.32, t.hash, true);
+        } else if (!isBridge && deg <= 2 && !(deg === 2 && ((nN && nE) || (nE && nS) || (nS && nW) || (nW && nN)))) {
+          if (bt === 'avenue' && (x + y) % 2 === 0) {
             addBroadleaf(wx, ry, wz, 0.34, t.hash, false);
           }
         }
 
         if (isBridge) {
-          const horiz = (nE || nW) && !(nN || nS);
-          push(B.bSolidBox, wx, 0.14, wz, 1.0, 0.14, 1.0, 0, 0x94a3b8);
-          if (horiz) {
-            push(B.bSolidBox, wx, 0.27, wz - 0.47, 1.0, 0.09, 0.05, 0, 0xe2e8f0);
-            push(B.bSolidBox, wx, 0.27, wz + 0.47, 1.0, 0.09, 0.05, 0, 0xe2e8f0);
-          } else {
-            push(B.bSolidBox, wx - 0.47, 0.27, wz, 0.05, 0.09, 1.0, 0, 0xe2e8f0);
-            push(B.bSolidBox, wx + 0.47, 0.27, wz, 0.05, 0.09, 1.0, 0, 0xe2e8f0);
+          // Bridge support piers descending cleanly into riverbed from exact sloped soffit
+          if ((x + y) % 2 === 0) {
+            const pierH = Math.max(0.5, ry - 0.12 - -0.82);
+            push(B.bCylinder, wx, ry - 0.12 - pierH * 0.5, wz, 0.28, pierH, 0.28, 0, 0x64748b);
           }
-          if ((x + y) % 2 === 0) push(B.bCylinder, wx, -0.28, wz, 0.28, 0.82, 0.28, 0, 0x64748b);
+          // Stay-cable pylons & diagonal cables anchored to exact deck height ry
           if (bt === 'avenue' && (x + y) % 3 === 0) {
+            const pylonBase = ry - 0.04;
             if (horiz) {
-              push(B.bSolidBox, wx, 1.15, wz - 0.44, 0.12, 1.9, 0.12, 0, 0xf1f5f9);
-              push(B.bSolidBox, wx, 1.15, wz + 0.44, 0.12, 1.9, 0.12, 0, 0xf1f5f9);
-              push(B.bBeacon, wx, 2.12, wz, 0.14, 0.09, 0.96, 0, 0x38bdf8);
+              push(B.bSolidBox, wx, pylonBase + 0.95, wz - 0.44, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
+              push(B.bSolidBox, wx, pylonBase + 0.95, wz + 0.44, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
+              push(B.bBeacon, wx, pylonBase + 1.92, wz, 0.14, 0.09, 0.96, 0, 0x94c5e8);
               for (const sgn of [-1, 1]) {
-                push(B.bCylinder, wx + sgn * 0.65, 1.05, wz - 0.44, 0.024, 1.9, 0.024, 0, 0xe2e8f0, 0, sgn * 0.64);
-                push(B.bCylinder, wx + sgn * 0.65, 1.05, wz + 0.44, 0.024, 1.9, 0.024, 0, 0xe2e8f0, 0, sgn * 0.64);
+                push(B.bCylinder, wx + sgn * 0.65, pylonBase + 0.85, wz - 0.44, 0.024, 1.9, 0.024, 0, 0xd4dbe4, 0, sgn * 0.64);
+                push(B.bCylinder, wx + sgn * 0.65, pylonBase + 0.85, wz + 0.44, 0.024, 1.9, 0.024, 0, 0xd4dbe4, 0, sgn * 0.64);
               }
             } else {
-              push(B.bSolidBox, wx - 0.44, 1.15, wz, 0.12, 1.9, 0.12, 0, 0xf1f5f9);
-              push(B.bSolidBox, wx + 0.44, 1.15, wz, 0.12, 1.9, 0.12, 0, 0xf1f5f9);
-              push(B.bBeacon, wx, 2.12, wz, 0.96, 0.09, 0.14, 0, 0x38bdf8);
+              push(B.bSolidBox, wx - 0.44, pylonBase + 0.95, wz, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
+              push(B.bSolidBox, wx + 0.44, pylonBase + 0.95, wz, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
+              push(B.bBeacon, wx, pylonBase + 1.92, wz, 0.96, 0.09, 0.14, 0, 0x94c5e8);
               for (const sgn of [-1, 1]) {
-                push(B.bCylinder, wx - 0.44, 1.05, wz + sgn * 0.65, 0.024, 1.9, 0.024, 0, 0xe2e8f0, -sgn * 0.64, 0);
-                push(B.bCylinder, wx + 0.44, 1.05, wz + sgn * 0.65, 0.024, 1.9, 0.024, 0, 0xe2e8f0, -sgn * 0.64, 0);
+                push(B.bCylinder, wx - 0.44, pylonBase + 0.85, wz + sgn * 0.65, 0.024, 1.9, 0.024, 0, 0xd4dbe4, -sgn * 0.64, 0);
+                push(B.bCylinder, wx + 0.44, pylonBase + 0.85, wz + sgn * 0.65, 0.024, 1.9, 0.024, 0, 0xd4dbe4, -sgn * 0.64, 0);
               }
             }
           }
@@ -305,10 +286,10 @@ export function populateCityAndNature(
       const style = Math.floor(t.hash * 6);
       const rot90 = ((x * 3 + y * 5) % 4) * (Math.PI / 2);
 
-      // Grounded Concrete Plaza / Courtyard Base
+      // Deep-grounded Concrete Plaza / Courtyard Foundation Plinth (never floats on slopes!)
       if (bt !== 'wind' && bt !== 'power_line' && bt !== 'park') {
-        const padCol = bt === 'ind' ? 0x94a3b8 : bt === 'res_low' ? 0xcfdcc4 : 0xdbe2ea;
-        push(B.bPlaza, wx, wy + 0.025, wz, 0.94, 0.05, 0.94, 0, padCol);
+        const padCol = bt === 'ind' ? 0x8f98a4 : bt === 'res_low' ? 0xc2ccb6 : 0xcbd2da;
+        push(B.bPlaza, wx, wy - 0.065, wz, 0.96, 0.22, 0.96, 0, padCol);
       }
 
       // ---- 1. SUBURBAN VILLAS & HOMES (4 Diverse Styles!) ----
