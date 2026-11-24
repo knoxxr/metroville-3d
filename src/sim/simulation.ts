@@ -821,7 +821,7 @@ export function dispatchEmergency(
 }
 
 export function maintainVehicles(rt: SimRuntime) {
-  const CAR_COLS = [0xe2e8f0, 0xfef08a, 0x93c5fd, 0xfca5a5, 0xcbd5e1, 0x6ee7b7, 0xfdba74];
+  const CAR_COLS = [0xd8dde3, 0x333942, 0x737d8a, 0x263b52, 0x8a3838, 0xb8afa0, 0x4c584e];
   const target = Math.min(110, rt.activeRoutes.length * 2 + 12);
   while (rt.vehicles.length < target && rt.activeRoutes.length > 0) {
     const r = rt.activeRoutes[Math.floor(Math.random() * rt.activeRoutes.length)];
@@ -833,9 +833,9 @@ export function maintainVehicles(rt: SimRuntime) {
       kind: r.kind,
       color:
         r.kind === 'bus'
-          ? 0x2563eb
+          ? 0x2b5582
           : r.kind === 'truck'
-            ? 0xf59e0b
+            ? 0xb58842
             : CAR_COLS[Math.floor(Math.random() * CAR_COLS.length)],
       lane: 0.14,
     });

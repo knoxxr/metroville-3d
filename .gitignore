@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-inline/
+dist-artifact/
 .vercel/
 .DS_Store
 *.log

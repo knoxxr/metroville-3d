@@ -134,49 +134,47 @@ export function populateCityAndNature(
   const g = state.grid;
   const isR = (x: number, y: number) => inBounds(x, y) && isRoadType(g[y][x].building?.type);
 
-  const OAK_COLS = [0x2d7a36, 0x3f8f3d, 0x246b2c, 0x559c3e, 0x709e38];
-  const ACCENT_COLS = [0xd97706, 0xea580c, 0xf472b6, 0xca8a04]; // warm autumn maple & sakura park accents!
-  const PINE_COLS = [0x174f24, 0x1e5c2c, 0x1f4f3c, 0x2a6933];
-  const ROCK_COLS = [0x78716c, 0x64748b, 0x57534e, 0x8a857c];
+  const OAK_COLS = [0x3d5c35, 0x4c693d, 0x334f2e, 0x5c7344, 0x697848];
+  const ACCENT_COLS = [0x9e5f30, 0xab6e35, 0xc28a9a, 0x8f7137];
+  const PINE_COLS = [0x243e29, 0x2d4832, 0x22392b, 0x345036];
+  const ROCK_COLS = [0x7c7972, 0x6b6e6d, 0x5d5b56, 0x8b867c];
 
   const addBroadleaf = (px: number, py: number, pz: number, sc: number, seed: number, allowAccent = true) => {
-    push(B.bTreeTrunk, px, py + 0.17 * sc, pz, 0.08 * sc, 0.36 * sc, 0.08 * sc, 0, 0x5c4033);
-    const isAccent = allowAccent && seed > 0.92;
+    push(B.bTreeTrunk, px, py + 0.17 * sc, pz, 0.08 * sc, 0.36 * sc, 0.08 * sc, 0, 0x4a3b30);
+    const isAccent = allowAccent && seed > 0.93;
     const baseCol = isAccent
       ? ACCENT_COLS[Math.floor(seed * 97) % ACCENT_COLS.length]
       : OAK_COLS[Math.floor(seed * 100) % OAK_COLS.length];
-    const hiCol = isAccent ? 0xfbbf24 : 0x52a847;
-    push(B.bBroadleaf, px, py + 0.45 * sc, pz, 0.56 * sc, 0.46 * sc, 0.56 * sc, seed * 6.2, baseCol);
-    push(B.bBroadleaf, px + 0.14 * sc, py + 0.58 * sc, pz - 0.1 * sc, 0.4 * sc, 0.36 * sc, 0.4 * sc, seed * 3.1, hiCol);
-    push(B.bBroadleaf, px - 0.12 * sc, py + 0.5 * sc, pz + 0.11 * sc, 0.36 * sc, 0.32 * sc, 0.36 * sc, seed * 1.7, baseCol);
+    const hiCol = isAccent ? 0xb87b42 : 0x5e7c47;
+    push(B.bBroadleaf, px, py + 0.44 * sc, pz, 0.58 * sc, 0.48 * sc, 0.58 * sc, seed * 6.2, baseCol);
+    push(B.bBroadleaf, px + 0.14 * sc, py + 0.56 * sc, pz - 0.1 * sc, 0.42 * sc, 0.38 * sc, 0.42 * sc, seed * 3.1, hiCol);
+    push(B.bBroadleaf, px - 0.12 * sc, py + 0.49 * sc, pz + 0.11 * sc, 0.38 * sc, 0.34 * sc, 0.38 * sc, seed * 1.7, baseCol);
   };
 
   const addAlpinePine = (px: number, py: number, pz: number, sc: number, seed: number) => {
     const col = PINE_COLS[Math.floor(seed * 83) % PINE_COLS.length];
-    push(B.bTreeTrunk, px, py + 0.18 * sc, pz, 0.08 * sc, 0.36 * sc, 0.08 * sc, 0, 0x4e342e);
-    push(B.bPine, px, py + 0.52 * sc, pz, 0.58 * sc, 0.58 * sc, 0.58 * sc, seed * 4, col);
-    push(B.bPine, px, py + 0.84 * sc, pz, 0.44 * sc, 0.52 * sc, 0.44 * sc, seed * 2.5, col);
-    push(B.bPine, px, py + 1.12 * sc, pz, 0.28 * sc, 0.44 * sc, 0.28 * sc, seed * 1.1, 0x2e7d32);
+    push(B.bTreeTrunk, px, py + 0.18 * sc, pz, 0.08 * sc, 0.36 * sc, 0.08 * sc, 0, 0x3e3028);
+    push(B.bPine, px, py + 0.52 * sc, pz, 0.62 * sc, 0.6 * sc, 0.62 * sc, seed * 4, col);
+    push(B.bPine, px, py + 0.84 * sc, pz, 0.46 * sc, 0.54 * sc, 0.46 * sc, seed * 2.5, col);
+    push(B.bPine, px, py + 1.12 * sc, pz, 0.3 * sc, 0.46 * sc, 0.3 * sc, seed * 1.1, 0x365438);
   };
 
   const addBoulderCluster = (px: number, py: number, pz: number, sc: number, seed: number) => {
     const c0 = ROCK_COLS[Math.floor(seed * 41) % ROCK_COLS.length];
     const c1 = ROCK_COLS[Math.floor(seed * 73) % ROCK_COLS.length];
-    push(B.bRock, px, py + 0.12 * sc, pz, 0.48 * sc, 0.28 * sc, 0.42 * sc, seed * 6, c0, seed * 0.4, seed * 0.3);
-    push(B.bRock, px + 0.2 * sc, py + 0.08 * sc, pz + 0.16 * sc, 0.28 * sc, 0.2 * sc, 0.25 * sc, seed * 3, c1);
+    push(B.bRock, px, py + 0.12 * sc, pz, 0.52 * sc, 0.3 * sc, 0.44 * sc, seed * 6, c0, seed * 0.4, seed * 0.3);
+    push(B.bRock, px + 0.22 * sc, py + 0.08 * sc, pz + 0.16 * sc, 0.32 * sc, 0.22 * sc, 0.28 * sc, seed * 3, c1);
   };
 
   const addRoofDetails = (wx: number, roofY: number, wz: number, w: number, hash: number, withHelipad = false) => {
-    push(B.bRoofTop, wx, roofY + 0.025, wz, w * 0.94, 0.05, w * 0.94, 0, 0x94a3b8);
-    // Mechanical penthouse + HVAC chiller boxes
-    push(B.bSolidBox, wx - w * 0.16, roofY + 0.12, wz - w * 0.14, w * 0.32, 0.16, w * 0.28, 0, 0x64748b);
-    push(B.bSolidBox, wx + w * 0.18, roofY + 0.09, wz + w * 0.16, w * 0.18, 0.1, w * 0.18, 0, 0xcbd5e1);
+    push(B.bRoofTop, wx, roofY + 0.025, wz, w * 0.94, 0.05, w * 0.94, 0, 0x878e97);
+    push(B.bSolidBox, wx - w * 0.16, roofY + 0.12, wz - w * 0.14, w * 0.32, 0.16, w * 0.28, 0, 0x626973);
+    push(B.bSolidBox, wx + w * 0.18, roofY + 0.09, wz + w * 0.16, w * 0.18, 0.1, w * 0.18, 0, 0xadb4bd);
     if (withHelipad) {
-      push(B.bCylinder, wx + w * 0.08, roofY + 0.06, wz + w * 0.06, w * 0.56, 0.03, w * 0.56, 0, 0x334155);
-      push(B.bBeacon, wx + w * 0.08, roofY + 0.085, wz + w * 0.06, w * 0.26, 0.02, 0.04, 0, 0xfacc15);
+      push(B.bCylinder, wx + w * 0.08, roofY + 0.06, wz + w * 0.06, w * 0.56, 0.03, w * 0.56, 0, 0x2d333b);
+      push(B.bBeacon, wx + w * 0.08, roofY + 0.085, wz + w * 0.06, w * 0.26, 0.02, 0.04, 0, 0xdcb448);
     } else if (hash > 0.65) {
-      // Rooftop terrace sky-garden!
-      push(B.bBush, wx + w * 0.16, roofY + 0.1, wz - w * 0.16, 0.2, 0.14, 0.2, hash * 5, 0x22c55e);
+      push(B.bBush, wx + w * 0.16, roofY + 0.1, wz - w * 0.16, 0.2, 0.14, 0.2, hash * 5, 0x4c6b3b);
     }
   };
 
@@ -191,11 +189,10 @@ export function populateCityAndNature(
       // Natural Scenery on unbuilt tiles: Shoreline Boulders, Reeds, Wildflower Bushes & Multi-Species Forests!
       if (!t.building && !t.zone) {
         if (t.terrain === 'sand' && t.isCoast) {
-          if (t.hash > 0.72) addBoulderCluster(wx + (t.hash - 0.8) * 0.4, wy - 0.02, wz, 0.65 + t.hash * 0.4, t.hash);
+          if (t.hash > 0.7) addBoulderCluster(wx + (t.hash - 0.8) * 0.4, wy - 0.02, wz, 0.68 + t.hash * 0.45, t.hash);
           else if (t.hash < 0.28) {
-            // Shoreline reeds / riverside bushes
-            push(B.bBush, wx - 0.15, wy + 0.08, wz + 0.1, 0.28, 0.22, 0.28, t.hash * 6, 0x4d7c0f);
-            push(B.bBush, wx + 0.18, wy + 0.06, wz - 0.12, 0.22, 0.18, 0.22, t.hash * 3, 0x65a30d);
+            push(B.bBush, wx - 0.15, wy + 0.08, wz + 0.1, 0.28, 0.22, 0.28, t.hash * 6, 0x4b6334);
+            push(B.bBush, wx + 0.18, wy + 0.06, wz - 0.12, 0.22, 0.18, 0.22, t.hash * 3, 0x5c703b);
           }
           continue;
         }
@@ -205,13 +202,11 @@ export function populateCityAndNature(
             const sc = 0.82 + t.hash * 0.56;
             if (isHill || t.hash > 0.84) addAlpinePine(wx, wy, wz, sc, t.hash);
             else addBroadleaf(wx, wy, wz, sc, t.hash, true);
-            // Companion undergrowth bush & small rock in forest groves!
-            if (t.hash > 0.8) push(B.bBush, wx + 0.28, wy + 0.09, wz + 0.24, 0.26, 0.2, 0.26, t.hash * 5, 0x3f6212);
+            if (t.hash > 0.8) push(B.bBush, wx + 0.28, wy + 0.09, wz + 0.24, 0.26, 0.2, 0.26, t.hash * 5, 0x3c522c);
           } else if (isHill && t.hash > 0.68) {
             addBoulderCluster(wx, wy, wz, 0.8 + t.hash * 0.5, t.hash);
           } else if (t.hash > 0.62 && t.hash < 0.72) {
-            // Subtle meadow shrubs & wildflower tufts
-            const bCol = t.hash > 0.69 ? 0xfacc15 : t.hash > 0.66 ? 0x65a30d : 0x4d7c0f;
+            const bCol = t.hash > 0.7 ? 0xb5a44c : t.hash > 0.66 ? 0x586d3b : 0x455c32;
             push(B.bBush, wx + (t.hash - 0.67) * 5, wy + 0.06, wz, 0.22, 0.14, 0.22, t.hash * 9, bCol);
           }
         }
