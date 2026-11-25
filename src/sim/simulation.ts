@@ -15,13 +15,8 @@ import {
   playSound,
   sectorIdx,
 } from './constants';
-import type { CityState, EmergencyVehicle, RouteInfo, Vehicle } from './types';
-
-// Zero-allocation reusable BFS arrays
-const bfsVis = new Int32Array(GRID * GRID);
-const bfsPar = new Int32Array(GRID * GRID);
-const bfsQ = new Int32Array(GRID * GRID);
-let bfsGen = 1;
+import type { CityState, EmergencyVehicle, ProblemType, RouteInfo, Vehicle } from './types';
+import { findOptimalRoadPath, findOutsideConnections } from './pathfinding';
 
 export interface SimRuntime {
   vehicles: Vehicle[];
@@ -45,49 +40,15 @@ export function getAdjRoad(state: CityState, x: number, y: number, allowHighway 
   return null;
 }
 
-export function findRoadPath(state: CityState, sx: number, sy: number, ex: number, ey: number): [number, number][] | null {
-  if (sx === ex && sy === ey) return [[sx, sy]];
-  const g = state.grid;
-  bfsGen++;
-  if (bfsGen > 2000000000) {
-    bfsVis.fill(0);
-    bfsGen = 1;
-  }
-  const startIdx = sy * GRID + sx;
-  const endIdx = ey * GRID + ex;
-  bfsVis[startIdx] = bfsGen;
-  bfsPar[startIdx] = -1;
-  let head = 0;
-  let tail = 0;
-  bfsQ[tail++] = startIdx;
-
-  while (head < tail) {
-    const cur = bfsQ[head++];
-    if (cur === endIdx) {
-      const path: [number, number][] = [];
-      let p = cur;
-      while (p !== -1) {
-        path.push([p % GRID, (p / GRID) | 0]);
-        p = bfsPar[p];
-      }
-      path.reverse();
-      return path;
-    }
-    const cx = cur % GRID;
-    const cy = (cur / GRID) | 0;
-    for (let d = 0; d < 4; d++) {
-      const nx = cx + DIRS[d][0];
-      const ny = cy + DIRS[d][1];
-      if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
-      const ni = ny * GRID + nx;
-      if (bfsVis[ni] === bfsGen) continue;
-      if (!isRoadType(g[ny][nx].building?.type)) continue;
-      bfsVis[ni] = bfsGen;
-      bfsPar[ni] = cur;
-      bfsQ[tail++] = ni;
-    }
-  }
-  return null;
+export function findRoadPath(
+  state: CityState,
+  sx: number,
+  sy: number,
+  ex: number,
+  ey: number,
+  ignoreCongestion = false
+): [number, number][] | null {
+  return findOptimalRoadPath(state, sx, sy, ex, ey, ignoreCongestion);
 }
 
 function spreadRoadService(
@@ -529,10 +490,11 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
     }
   }
 
-  // 5. Traffic Simulation
-  computeTrafficFlow(state, rt, metroActive);
+  // 5. Weighted Road-Hierarchy Traffic Simulation & Outside Highway Trade Connections!
+  const outsidePortals = findOutsideConnections(state);
+  const roadHierarchyPct = computeTrafficFlow(state, rt, metroActive, outsidePortals);
 
-  // 6. Population, Jobs, Tax (with District Specializations!), Education & RCI Demand
+  // 6. Deep Cities: Skylines Economy: Supply Chain, 4-Tier Education Workforce, 5-Level Diagnostics & RCI Demand
   let totalPop = 0;
   let totalJobs = 0;
   let comJobs = 0;
@@ -545,12 +507,54 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
   let activeFires = 0;
   let roadCnt = 0;
   let congSum = 0;
+  let goodsProduced = 0;
+  let goodsDemand = 0;
+  let problemCount = 0;
+
+  // Pre-pass: estimate city-wide goods production/demand & total workforce for authentic CS matching
+  let estPop = 0;
+  let estJobs = 0;
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const t = g[y][x];
+      const b = t.building;
+      if (!b || b.abandoned || t.onFire || !ZONE_SPECS[b.type]) continue;
+      const zs = ZONE_SPECS[b.type];
+      const lv = Math.min(5, Math.max(1, b.level || 1));
+      const lvScale = 1 + (lv - 1) * 0.72;
+      const spec = state.sectorSpecs[sectorIdx(x, y)] || 'general';
+      if (zs.group === 'R') {
+        estPop += (zs.pop || 15) * lvScale;
+      } else {
+        estJobs += (zs.jobs || 15) * lvScale;
+        if (b.type === 'ind') {
+          goodsProduced += Math.round(14 * lvScale * (spec === 'smart_port' ? 1.32 : 1));
+        } else if (zs.group === 'C') {
+          goodsDemand += Math.round(12 * lvScale * (spec === 'tourism' ? 1.15 : 1));
+        }
+      }
+    }
+  }
+
+  const hasOutside = outsidePortals.length > 0;
+  const maxImportCap = outsidePortals.length * 1400;
+  const goodsShortfall = Math.max(0, goodsDemand - goodsProduced);
+  const goodsImported = hasOutside ? Math.min(goodsShortfall, maxImportCap) : 0;
+  const goodsExported = hasOutside ? Math.max(0, goodsProduced - goodsDemand) : 0;
+  const cityGoodsRatio = goodsDemand > 0 ? Math.min(1, (goodsProduced + goodsImported) / goodsDemand) : 1;
+  const cityWorkforce = Math.max(1, estPop * 0.64);
+  const cityWorkerRatio = estJobs > 0 ? Math.min(1, cityWorkforce / estJobs) : 1;
 
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       const t = g[y][x];
       const b = t.building;
       const spec = state.sectorSpecs[sectorIdx(x, y)] || 'general';
+      t.problem = null;
+      t.levelHint = '';
+      t.workerFill = 1;
+      t.goodsSupply = 1;
+
       if (t.onFire) activeFires++;
       if (isRoadType(b?.type) && !b?.locked) {
         roadCnt++;
@@ -564,17 +568,47 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
       }
       t.adjCongestion = ac;
 
-      let hp = t.happiness - Math.round(t.pollution * 0.85) - Math.round(t.crime * 0.35);
+      let hp = t.happiness - Math.round(t.pollution * 0.85) - Math.round(t.crime * 0.35) - Math.round(t.noise * 0.25);
       if (t.waterPolluted) hp -= 35;
       if (t.garbageAccum > 45) hp -= 18;
       if (!t.powered && b && ZONE_SPECS[b.type]) hp -= 25;
       if ((!t.hasWater || !t.hasSewage) && b && ZONE_SPECS[b.type]) hp -= 25;
       t.happiness = Math.max(5, Math.min(100, hp));
 
-      if (!b || b.abandoned || t.onFire) continue;
+      if (!b) continue;
       const zs = ZONE_SPECS[b.type];
       const def = TOOL_MAP[b.type];
+
+      // Determine prioritized Cities: Skylines 3D floating problem badge for EVERY building!
+      let prob: ProblemType | null = null;
+      if (t.onFire) prob = 'fire';
+      else if (b.abandoned) prob = 'abandoned';
+      else if (zs || def?.svc || b.type === 'landmark') {
+        if (!t.hasRoad && !isRoadType(b.type) && b.type !== 'wind' && b.type !== 'power_line' && b.type !== 'water_pump' && b.type !== 'sewage' && b.type !== 'park') {
+          prob = 'road';
+        } else if (!t.powered && (zs || def?.powerUse)) {
+          prob = 'power';
+        } else if ((!t.hasWater || t.waterPolluted) && (zs || def?.waterUse)) {
+          prob = 'water';
+        } else if (!t.hasSewage && (zs || def?.waterUse)) {
+          prob = 'sewage';
+        } else if (t.sick) {
+          prob = 'sick';
+        } else if (t.garbageAccum > 68) {
+          prob = 'garbage';
+        } else if (t.crime > 48) {
+          prob = 'crime';
+        }
+      }
+
+      if (b.abandoned || t.onFire) {
+        t.problem = prob;
+        if (prob) problemCount++;
+        continue;
+      }
+
       if (zs) {
+        const lv = Math.min(5, Math.max(1, b.level || 1));
         const taxKey = (b.type === 'office' ? 'O' : zs.group) as 'R' | 'C' | 'I' | 'O';
         const taxRate = state.taxes[taxKey] || 10;
         const taxFactor = (taxRate / 10) * evTaxMult;
@@ -586,9 +620,49 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
           (t.powered ? 1 : 0.3) *
           (t.hasWater && t.hasSewage ? 1 : 0.4) *
           (t.waterPolluted ? 0.45 : 1);
-        const trfEff = ac > 1.25 ? 0.72 : 1;
-        const lvMultP = b.level === 1 ? 1 : b.level === 2 ? 2.1 : 3.7;
-        const lvMultT = b.level === 1 ? 1 : b.level === 2 ? 2.0 : 3.5;
+        const trfEff = ac > 1.35 ? 0.68 : ac > 1.05 ? 0.86 : 1;
+
+        // 5-Level Cities: Skylines scaling curve (Lv.1 -> Lv.5)
+        const lvMultP = [1, 1.8, 2.8, 3.9, 5.1][lv - 1];
+        const lvMultT = [1, 1.75, 2.7, 3.7, 4.9][lv - 1];
+
+        // Supply chain & workforce satisfaction
+        let goodsSup = 1;
+        if (zs.group === 'C') {
+          goodsSup = Math.max(0.25, cityGoodsRatio * (ac > 1.35 ? 0.72 : 1));
+        } else if (b.type === 'ind') {
+          goodsSup = hasOutside || goodsDemand > 0 ? (ac > 1.35 ? 0.76 : 1) : 0.45;
+        }
+        t.goodsSupply = Math.min(1, goodsSup);
+
+        let wFill = 1;
+        if (zs.group !== 'R') {
+          const needHighEdu = b.type === 'office' || (zs.group === 'C' && lv >= 3);
+          const eduMatch = needHighEdu
+            ? Math.min(1, Math.max(0.45, (t.eduCov + (spec === 'it_hub' ? 28 : 0)) / (lv >= 4 ? 65 : 42)))
+            : 1;
+          wFill = Math.min(1, cityWorkerRatio * 1.15) * eduMatch;
+        }
+        t.workerFill = Math.max(0.25, Math.min(1, wFill));
+
+        if (!prob && zs.group === 'C' && t.goodsSupply < 0.58) prob = 'goods';
+        else if (!prob && zs.group !== 'R' && t.workerFill < 0.58) prob = 'workers';
+        t.problem = prob;
+        if (prob) problemCount++;
+
+        // Exact Cities: Skylines 5-level upgrade requirement hint for Inspector
+        if (lv >= 5) {
+          t.levelHint = '⭐ 최고 등급 Lv.5 달성!';
+        } else {
+          const reqLV = [44, 56, 68, 80][lv - 1];
+          const reqEdu = b.type === 'office' ? [30, 45, 62, 78][lv - 1] : [0, 22, 42, 62][lv - 1];
+          const reqHp = [65, 70, 75, 80][lv - 1];
+          if (prob) t.levelHint = '⚠️ 도시 문제 해결 필요';
+          else if (t.landValue < reqLV) t.levelHint = `💎 지가 ${reqLV}+ 필요 (현재 ${t.landValue})`;
+          else if (t.eduCov < reqEdu) t.levelHint = `🎓 교육 ${reqEdu}%+ 필요 (현재 ${t.eduCov}%)`;
+          else if (t.happiness < reqHp) t.levelHint = `😊 행복도 ${reqHp}%+ 필요 (현재 ${t.happiness}%)`;
+          else t.levelHint = `📈 Lv.${lv + 1} 승급 진행 중 (${Math.round(b.growth || 0)}%)`;
+        }
 
         if (zs.group === 'R') {
           const p = Math.round((zs.pop || 15) * lvMultP * utilEff * (0.55 + (0.45 * t.happiness) / 100));
@@ -596,14 +670,15 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
           totalTax += Math.round(zs.tax * lvMultT * utilEff * taxFactor);
           eduSum += t.eduCov * p;
           eduW += p;
-          happySum += t.happiness * (1 + b.level);
-          happyW += 1 + b.level;
+          happySum += t.happiness * (1 + lv);
+          happyW += 1 + lv;
         } else if (zs.group === 'C') {
           const specBoost = spec === 'tourism' ? 1.32 : 1;
-          const j = Math.round((zs.jobs || 12) * lvMultP * utilEff * trfEff);
+          const chainEff = 0.5 + 0.5 * t.goodsSupply;
+          const j = Math.round((zs.jobs || 12) * lvMultP * utilEff * trfEff * t.workerFill);
           totalJobs += j;
           comJobs += j;
-          totalTax += Math.round(zs.tax * lvMultT * utilEff * trfEff * taxFactor * specBoost);
+          totalTax += Math.round(zs.tax * lvMultT * utilEff * trfEff * chainEff * t.workerFill * taxFactor * specBoost);
         } else {
           const specBoost =
             b.type === 'office'
@@ -613,19 +688,27 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
               : spec === 'smart_port'
                 ? 1.3
                 : 1;
-          const eduEff = b.type === 'office' ? (t.eduCov >= 30 || spec === 'it_hub' ? 1 : 0.45) : 1;
-          const j = Math.round((zs.jobs || 20) * lvMultP * utilEff * trfEff * eduEff);
+          const j = Math.round((zs.jobs || 20) * lvMultP * utilEff * trfEff * t.workerFill);
           totalJobs += j;
           indJobs += j;
-          totalTax += Math.round(zs.tax * lvMultT * utilEff * trfEff * eduEff * taxFactor * specBoost);
+          totalTax += Math.round(zs.tax * lvMultT * utilEff * trfEff * t.workerFill * taxFactor * specBoost);
         }
-      } else if (b.type === 'landmark' && def?.taxBase) {
-        const specBoost = spec === 'tourism' ? 1.35 : 1;
-        totalTax += Math.round(def.taxBase * (t.powered && t.hasRoad ? 1 : 0.3) * specBoost * evTaxMult);
-        happySum += 300;
-        happyW += 3;
+      } else {
+        t.problem = prob;
+        if (prob) problemCount++;
+        if (b.type === 'landmark' && def?.taxBase) {
+          const specBoost = spec === 'tourism' ? 1.35 : 1;
+          totalTax += Math.round(def.taxBase * (t.powered && t.hasRoad ? 1 : 0.3) * specBoost * evTaxMult);
+          happySum += 300;
+          happyW += 3;
+        }
       }
     }
+  }
+
+  // Export trade revenue bonus from highway outside connections
+  if (goodsExported > 0) {
+    totalTax += Math.round(goodsExported * 0.45);
   }
 
   for (const p of POLICIES) if (state.policies[p.id]) baseUpkeep += p.cost;
@@ -640,6 +723,17 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
   const rawFlow = roadCnt > 0 ? 100 - (congSum / Math.max(4, roadCnt)) * 120 : 100;
   const trafficFlow = Math.max(25, Math.min(100, Math.round(rawFlow + evTrafficBonus)));
   const greenPowerPct = powerGen > 0 ? Math.min(100, Math.round((greenPower / powerGen) * 100)) : 0;
+
+  // 4-Tier Citizen Education Demographics ([Uneducated, Elementary, High School, University])
+  const eNorm = avgEdu / 100;
+  const tUni = Math.round(Math.pow(eNorm, 1.55) * 44);
+  const tHigh = Math.round(eNorm * 36);
+  const tElem = Math.round(Math.min(48, 22 + (1 - Math.abs(eNorm - 0.45)) * 22));
+  const tUnedu = Math.max(2, 100 - tUni - tHigh - tElem);
+  const eduTiers: [number, number, number, number] = [tUnedu, tElem, tHigh, tUni];
+  const workforcePop = Math.max(1, Math.round(totalPop * 0.64));
+  const unemploymentPct =
+    totalPop > 0 ? Math.max(0, Math.min(95, Math.round(((workforcePop - totalJobs) / workforcePop) * 100))) : 0;
 
   const taxModR = (10 - state.taxes.R) * 4.5;
   const taxModC = (10 - state.taxes.C) * 4.5;
@@ -668,6 +762,15 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
     population: totalPop,
     jobs: totalJobs,
     education: avgEdu,
+    unemploymentPct,
+    eduTiers,
+    goodsProduced,
+    goodsDemand,
+    goodsImported,
+    goodsExported,
+    outsideConnections: outsidePortals.length,
+    problemCount,
+    roadHierarchyPct,
     powerGen,
     powerUse,
     greenPowerPct,
@@ -697,19 +800,28 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
     state.chirp = '💧 #상하수도경보 "물이나 하수 용량 부족! 지하 수도관(🔧)과 취수장·하수구를 확충하세요."';
   } else if (!garbageOk) {
     state.chirp = '🗑️ #쓰레기대란 "쓰레기가 쌓이고 있어요! 매립지나 소각 발전소를 지어주세요."';
+  } else if (cityGoodsRatio < 0.72 && goodsDemand > 50) {
+    state.chirp = '📦 #물류부족 "상점에 상품이 부족해요! 산업단지를 확충하거나 외부 고속도로 연결을 확보하세요!"';
+  } else if (unemploymentPct > 18 && totalPop > 200) {
+    state.chirp = `👷 #실업률경보 "실업률이 ${unemploymentPct}%입니다! 상업·산업·오피스 일자리를 늘려주세요!"`;
   } else if (trafficFlow < 75) {
-    state.chirp = '🚗 #교통체증 "혼잡 교차로에 🔄 회전교차로를 올리거나 4차선 대로·지하철역으로 확장해 보세요!"';
+    state.chirp = '🚗 #교통체증 "혼잡 교차로를 클릭해 경로 분석기를 보고 회전교차로·4차선 대로로 확장해 보세요!"';
   } else {
-    state.chirp = `🏙️ #${state.name} "인구 ${totalPop.toLocaleString()}명 · 교통흐름 ${trafficFlow}% · 친환경 전력 ${greenPowerPct}% — 야경이 눈부신 메가폴리스!"`;
+    state.chirp = `🏙️ #${state.name} "인구 ${totalPop.toLocaleString()}명 · 실업률 ${unemploymentPct}% · 교통흐름 ${trafficFlow}% · 물류수급 ${Math.round(cityGoodsRatio * 100)}%"`;
   }
 }
 
-export function computeTrafficFlow(state: CityState, rt: SimRuntime, metroActive: boolean) {
+export function computeTrafficFlow(
+  state: CityState,
+  rt: SimRuntime,
+  metroActive: boolean,
+  outsidePortals: [number, number][] = []
+): number {
   const g = state.grid;
+  // Save previous congestion so weighted A* dynamically reroutes around existing bottlenecks!
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       g[y][x].trafficLoad = 0;
-      g[y][x].congestion = 0;
     }
   }
   const resN: { rx: number; ry: number; wt: number; x: number; y: number }[] = [];
@@ -726,7 +838,7 @@ export function computeTrafficFlow(state: CityState, rt: SimRuntime, metroActive
       if (!r) continue;
       const wt =
         ZONE_SPECS[b.type].traffic *
-        (1 + (b.level - 1) * 0.5) *
+        (1 + (b.level - 1) * 0.42) *
         (t.nearTransit ? (metroActive ? transitFactor : 0.7) : 1);
       const n = { rx: r[0], ry: r[1], wt, x, y };
       if (ZONE_SPECS[b.type].group === 'R') resN.push(n);
@@ -736,22 +848,37 @@ export function computeTrafficFlow(state: CityState, rt: SimRuntime, metroActive
   }
 
   const nr: RouteInfo[] = [];
+  let totalStepTiles = 0;
+  let arterialStepTiles = 0;
+  const recordPath = (path: [number, number][], load: number, kind: 'car' | 'truck' | 'bus', purpose: RouteInfo['purpose']) => {
+    for (let k = 0; k < path.length; k++) {
+      const rtTile = g[path[k][1]][path[k][0]];
+      rtTile.trafficLoad += load;
+      totalStepTiles++;
+      const rbt = rtTile.building?.type;
+      if (rbt === 'highway' || rbt === 'avenue' || rbt === 'roundabout') arterialStepTiles++;
+    }
+    if (nr.length < 130) nr.push({ path, kind, purpose });
+  };
+
+  // Regional thru-traffic on highways
   const hwyEW: [number, number][] = [];
   const hwyNS: [number, number][] = [];
   for (let x = 0; x < GRID; x++) if (g[2]?.[x]?.building?.type === 'highway') hwyEW.push([x, 2]);
   for (let y = 0; y < 52; y++) if (g[y]?.[3]?.building?.type === 'highway') hwyNS.push([3, y]);
   if (hwyEW.length > 10) {
-    nr.push({ path: hwyEW, kind: 'car' });
-    nr.push({ path: [...hwyEW].reverse(), kind: 'truck' });
+    nr.push({ path: hwyEW, kind: 'car', purpose: 'commute' });
+    nr.push({ path: [...hwyEW].reverse(), kind: 'truck', purpose: 'export' });
   }
   if (hwyNS.length > 10) {
-    nr.push({ path: hwyNS, kind: 'truck' });
-    nr.push({ path: [...hwyNS].reverse(), kind: 'car' });
+    nr.push({ path: hwyNS, kind: 'truck', purpose: 'import' });
+    nr.push({ path: [...hwyNS].reverse(), kind: 'car', purpose: 'commute' });
   }
 
+  // 1. Commuters (Home -> Work / Shop via Road Hierarchy A*)
   const works = [...comN, ...indN];
   if (works.length && resN.length) {
-    const maxSamples = 60;
+    const maxSamples = 58;
     const stride = Math.max(1, Math.ceil(resN.length / maxSamples));
     const scaleW = Math.min(2.2, stride * 0.75);
     for (let i = state.day % stride; i < resN.length; i += stride) {
@@ -759,14 +886,15 @@ export function computeTrafficFlow(state: CityState, rt: SimRuntime, metroActive
       const d = works[(i * 7 + s.x * 3 + s.y) % works.length];
       const p = findRoadPath(state, s.rx, s.ry, d.rx, d.ry);
       if (p && p.length > 1) {
-        const load = s.wt * scaleW;
-        for (let k = 0; k < p.length; k++) g[p[k][1]][p[k][0]].trafficLoad += load;
-        if (nr.length < 75) nr.push({ path: p, kind: i % 5 === 0 ? 'bus' : 'car' });
+        const isBus = i % 5 === 0;
+        recordPath(p, s.wt * scaleW, isBus ? 'bus' : 'car', isBus ? 'transit' : 'commute');
       }
     }
   }
+
+  // 2. Domestic Supply Chain Freight (Industry -> Commercial)
   if (comN.length && indN.length) {
-    const maxInd = 25;
+    const maxInd = 22;
     const stride = Math.max(1, Math.ceil(indN.length / maxInd));
     const scaleW = Math.min(2.2, stride * 0.8);
     for (let i = state.day % stride; i < indN.length; i += stride) {
@@ -774,21 +902,41 @@ export function computeTrafficFlow(state: CityState, rt: SimRuntime, metroActive
       const d = comN[(i * 5 + s.y * 3) % comN.length];
       const p = findRoadPath(state, s.rx, s.ry, d.rx, d.ry);
       if (p && p.length > 1) {
-        const load = s.wt * scaleW;
-        for (let k = 0; k < p.length; k++) g[p[k][1]][p[k][0]].trafficLoad += load;
-        if (nr.length < 105) nr.push({ path: p, kind: 'truck' });
+        recordPath(p, s.wt * scaleW, 'truck', 'freight');
       }
     }
   }
+
+  // 3. Regional Highway Import/Export Freight (Outside Connections <-> Commercial & Industrial!)
+  if (outsidePortals.length > 0) {
+    const maxImports = Math.min(10, comN.length);
+    for (let i = 0; i < maxImports; i++) {
+      const portal = outsidePortals[i % outsidePortals.length];
+      const shop = comN[(i * 11 + state.day) % comN.length];
+      const p = findRoadPath(state, portal[0], portal[1], shop.rx, shop.ry);
+      if (p && p.length > 1) recordPath(p, 1.4, 'truck', 'import');
+    }
+    const maxExports = Math.min(8, indN.length);
+    for (let i = 0; i < maxExports; i++) {
+      const portal = outsidePortals[(i + 1) % outsidePortals.length];
+      const fac = indN[(i * 9 + state.day) % indN.length];
+      const p = findRoadPath(state, fac.rx, fac.ry, portal[0], portal[1]);
+      if (p && p.length > 1) recordPath(p, 1.4, 'truck', 'export');
+    }
+  }
+
   rt.activeRoutes = nr;
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
       const t = g[y][x];
       if (isRoadType(t.building?.type)) {
         t.congestion = t.trafficLoad / (TOOL_MAP[t.building!.type]?.cap || 18);
+      } else {
+        t.congestion = 0;
       }
     }
   }
+  return totalStepTiles > 0 ? Math.round((arterialStepTiles / totalStepTiles) * 100) : 100;
 }
 
 export function dispatchEmergency(
@@ -1027,10 +1175,13 @@ export function simTick(state: CityState, rt: SimRuntime) {
           b.abandoned = false;
           rt.onChunkDirty(x, y);
         }
-        if (!b.abandoned && b.level < 3) {
-          const reqLV = b.level === 1 ? 48 : 66;
-          const reqEdu = b.type === 'office' ? (b.level === 1 ? 35 : 65) : b.level === 2 ? 25 : 0;
-          if (t.landValue >= reqLV && t.eduCov >= reqEdu && t.happiness >= 70) {
+        if (!b.abandoned && b.level < 5) {
+          const lv = Math.max(1, b.level || 1);
+          const reqLV = [44, 56, 68, 80][lv - 1];
+          const reqEdu = b.type === 'office' ? [30, 45, 62, 78][lv - 1] : [0, 22, 42, 62][lv - 1];
+          const reqHp = [65, 70, 75, 80][lv - 1];
+          const supplyOk = (t.goodsSupply ?? 1) >= 0.6 && (t.workerFill ?? 1) >= 0.6;
+          if (!t.problem && supplyOk && t.landValue >= reqLV && t.eduCov >= reqEdu && t.happiness >= reqHp) {
             b.growth = (b.growth || 0) + (state.policies.hightech ? 24 : 16);
             if (b.growth >= 100) {
               b.level += 1;

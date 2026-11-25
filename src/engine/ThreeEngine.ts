@@ -582,6 +582,9 @@ export class ThreeEngine {
       if (t.pollution > 15) return 0x92400e;
       return t.landValue > 70 ? 0x10b981 : t.landValue > 50 ? 0x6ee7b7 : 0x64748b;
     }
+    if (activeView === 'noise') {
+      return t.noise > 18 ? 0xef4444 : t.noise > 9 ? 0xf59e0b : t.noise > 3 ? 0xfde047 : 0x22c55e;
+    }
 
     if (t.terrain === 'water') return 0x1b3744;
     if (t.terrain === 'sand') {
@@ -1124,6 +1127,7 @@ export class ThreeEngine {
 
     this.overlays.rebuildPowerCables(state);
     this.overlays.rebuildUtilityOverlays(state, activeView, activeTool);
+    this.overlays.rebuildProblemIcons(state, elev.sampleTerrainY);
     this.atmosphere.syncEmitters(state);
     this.worldDirty = false;
   }
@@ -1423,5 +1427,17 @@ export class ThreeEngine {
     anchor: { x: number; y: number } | null = null
   ) {
     this.overlays.updateLivePreview(state, activeTool, hover, plan, anchor);
+  }
+
+  public updateRouteInspector(
+    state: CityState,
+    rt: SimRuntime,
+    selected: { x: number; y: number } | null
+  ) {
+    this.overlays.rebuildRouteInspector(state, rt.activeRoutes, selected, this.elevField?.sampleRoadY);
+  }
+
+  public refreshProblemIcons(state: CityState) {
+    this.overlays.rebuildProblemIcons(state, this.elevField?.sampleTerrainY);
   }
 }

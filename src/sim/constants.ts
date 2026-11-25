@@ -35,6 +35,7 @@ export const INFO_VIEWS: { id: InfoViewId; icon: string; name: string }[] = [
   { id: 'edu',       icon: '🎓', name: '교육 수준' },
   { id: 'garbage',   icon: '🗑️', name: '쓰레기 처리' },
   { id: 'landvalue', icon: '💎', name: '지가·공해' },
+  { id: 'noise',     icon: '🔊', name: '소음 공해' },
 ];
 
 export const CATEGORIES = [

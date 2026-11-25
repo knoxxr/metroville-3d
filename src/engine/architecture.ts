@@ -277,7 +277,9 @@ export function populateCityAndNature(
         continue;
       }
 
-      const lv = b.level || 1;
+      const rawLv = Math.min(5, Math.max(1, b.level || 1));
+      // Historical Building Lock keeps classic visual silhouette while still earning Lv.5 tax/pop!
+      const lv = b.historical ? Math.min(2, rawLv) : 1 + (rawLv - 1) * 0.65;
       const dim = b.abandoned ? 0x64748b : 0xffffff;
       // Dramatic skyline height hierarchy (hero towers vs varied mid-rises!)
       const heroBoost = t.hash > 0.84 ? 1.42 : t.hash < 0.25 ? 0.76 : 0.95 + t.hash * 0.25;

@@ -1,4 +1,4 @@
-import { GRID, isRoadType, playSound, setSoundEnabled, soundEnabled } from './sim/constants';
+import { DIRS, GRID, inBounds, isRoadType, playSound, setSoundEnabled, soundEnabled } from './sim/constants';
 import { createDemoCity, createEmptyState, loadCityState, saveCityState } from './sim/state';
 import {
   evaluateQuests,
@@ -311,6 +311,56 @@ const hud = new HUDController({
       playSound('error');
       hud.showToast('업그레이드 불가', res.reason, 'error');
     }
+  },
+  onToggleHistorical: (x, y) => {
+    const b = state.grid[y]?.[x]?.building;
+    if (!b) return;
+    b.historical = !b.historical;
+    playSound('snap');
+    engine.markWorldDirty(false);
+    hud.updateInspector();
+    saveCityState(state);
+    hud.showToast(
+      b.historical ? '🏛️ 역사적 건물 보존 설정' : '🏛️ 역사적 건물 보존 해제',
+      b.historical ? '현재 외관을 유지한 채 Lv.5까지 세수·인구가 성장합니다.' : '레벨에 따라 최신 고층 외관으로 자동 진화합니다.',
+      'info'
+    );
+  },
+  getRouteStats: (x, y) => {
+    const t = state.grid[y]?.[x];
+    const match = new Set<number>();
+    if (t && isRoadType(t.building?.type)) {
+      match.add(y * GRID + x);
+    } else if (t?.building) {
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (inBounds(nx, ny) && isRoadType(state.grid[ny][nx].building?.type)) {
+          match.add(ny * GRID + nx);
+        }
+      }
+    }
+    const res = { commute: 0, freight: 0, transit: 0, trade: 0 };
+    if (match.size === 0) return res;
+    for (const r of rt.activeRoutes) {
+      let hit = false;
+      for (let i = 0; i < r.path.length; i++) {
+        if (match.has(r.path[i][1] * GRID + r.path[i][0])) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) continue;
+      const p = r.purpose || (r.kind === 'bus' ? 'transit' : r.kind === 'truck' ? 'freight' : 'commute');
+      if (p === 'commute') res.commute++;
+      else if (p === 'freight') res.freight++;
+      else if (p === 'transit') res.transit++;
+      else res.trade++;
+    }
+    return res;
+  },
+  onSyncSelection: () => {
+    engine.updateRouteInspector(state, rt, selectedTile);
   },
   onBuySector: (secIdx) => {
     if (state.unlockedSectors[secIdx]) return;
@@ -857,6 +907,7 @@ function loop(now: number) {
     if (simAccum >= tickInterval) {
       simAccum = 0;
       simTick(state, rt);
+      engine.refreshProblemIcons(state);
       hud.updateHUD();
       hud.updateInspector();
       if (state.day % 5 === 0) saveCityState(state);

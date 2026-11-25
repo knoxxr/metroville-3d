@@ -4,13 +4,27 @@ export type InfoViewId =
   | 'power'
   | 'water'
   | 'traffic'
+  | 'district'
   | 'fire'
   | 'police'
   | 'health'
   | 'edu'
   | 'garbage'
   | 'landvalue'
-  | 'district';
+  | 'noise';
+
+export type ProblemType =
+  | 'fire'
+  | 'power'
+  | 'water'
+  | 'sewage'
+  | 'road'
+  | 'sick'
+  | 'garbage'
+  | 'crime'
+  | 'goods'
+  | 'workers'
+  | 'abandoned';
 
 export type DistrictSpecId = 'general' | 'it_hub' | 'eco_garden' | 'tourism' | 'smart_port';
 export type LightingMode = 'day' | 'sunset' | 'night' | 'auto';
@@ -24,6 +38,7 @@ export interface Building {
   neglect?: number;
   abandoned?: boolean;
   locked?: boolean;
+  historical?: boolean;
   builtAt?: number;
 }
 
@@ -65,12 +80,26 @@ export interface Tile {
   congestion: number;
   adjCongestion: number;
   nearTransit: boolean;
+  // Deep Cities: Skylines per-building diagnostics
+  problem?: ProblemType | null;
+  workerFill?: number;
+  goodsSupply?: number;
+  levelHint?: string;
 }
 
 export interface CityStats {
   population: number;
   jobs: number;
   education: number;
+  unemploymentPct: number;
+  eduTiers: [number, number, number, number]; // [uneducated%, elem%, high%, uni%]
+  goodsProduced: number;
+  goodsDemand: number;
+  goodsImported: number;
+  goodsExported: number;
+  outsideConnections: number;
+  problemCount: number;
+  roadHierarchyPct: number;
   powerGen: number;
   powerUse: number;
   greenPowerPct: number;
@@ -225,6 +254,7 @@ export interface BrushPlan {
 export interface RouteInfo {
   path: [number, number][];
   kind: 'car' | 'truck' | 'bus';
+  purpose?: 'commute' | 'freight' | 'import' | 'export' | 'transit';
 }
 
 export interface Vehicle {

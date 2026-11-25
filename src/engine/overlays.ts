@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { DIRS, DIRS8, GRID, PIPE_OFFSETS, inBounds, isRoadType } from '../sim/constants';
 import { isZoneTool } from '../sim/builder';
-import type { BrushPlan, CityState, InfoViewId } from '../sim/types';
+import type { BrushPlan, CityState, InfoViewId, ProblemType, RouteInfo } from '../sim/types';
 
 export function tileWorldX(gx: number): number {
   return gx - GRID / 2 + 0.5;
@@ -22,6 +22,18 @@ export class ConnectionOverlays {
   private cableGroup = new THREE.Group();
   private previewGroup = new THREE.Group();
   private zoneGuideGroup = new THREE.Group();
+  private problemGroup = new THREE.Group();
+  private routeGroup = new THREE.Group();
+
+  private problemSprites: { sprite: THREE.Sprite; baseY: number; phase: number }[] = [];
+  private problemMats = new Map<ProblemType, THREE.SpriteMaterial>();
+  private routeMats = {
+    commute: new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.88 }),
+    freight: new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.90 }),
+    transit: new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.92 }),
+    import: new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.90 }),
+    export: new THREE.MeshBasicMaterial({ color: 0xf472b6, transparent: true, opacity: 0.90 }),
+  };
 
   // Animated water pulse beads along active pipes
   private pulseMesh: THREE.InstancedMesh;
@@ -160,6 +172,8 @@ export class ConnectionOverlays {
     this.anchorRingMesh.visible = false;
     this.anchorRingMesh.renderOrder = 21;
     this.root.add(this.anchorRingMesh);
+    this.root.add(this.problemGroup);
+    this.root.add(this.routeGroup);
   }
 
   private clearGroup(g: THREE.Group, keep?: THREE.Object3D) {
@@ -597,6 +611,183 @@ export class ConnectionOverlays {
     }
   }
 
+  private getProblemMaterial(prob: ProblemType): THREE.SpriteMaterial {
+    const cached = this.problemMats.get(prob);
+    if (cached) return cached;
+
+    const META: Record<ProblemType, { icon: string; ring: string; bg: string }> = {
+      fire:      { icon: '🔥', ring: '#ef4444', bg: 'rgba(127,29,29,0.92)' },
+      abandoned: { icon: '🏚️', ring: '#94a3b8', bg: 'rgba(30,41,59,0.92)' },
+      road:      { icon: '🛣️', ring: '#f97316', bg: 'rgba(124,45,18,0.92)' },
+      power:     { icon: '⚡', ring: '#facc15', bg: 'rgba(113,63,18,0.92)' },
+      water:     { icon: '💧', ring: '#38bdf8', bg: 'rgba(12,74,110,0.92)' },
+      sewage:    { icon: '🌊', ring: '#a16207', bg: 'rgba(66,32,6,0.92)' },
+      sick:      { icon: '🏥', ring: '#f43f5e', bg: 'rgba(136,19,55,0.92)' },
+      garbage:   { icon: '🗑️', ring: '#d97706', bg: 'rgba(69,26,3,0.92)' },
+      crime:     { icon: '🚨', ring: '#ef4444', bg: 'rgba(69,10,10,0.92)' },
+      goods:     { icon: '📦', ring: '#f59e0b', bg: 'rgba(120,53,15,0.92)' },
+      workers:   { icon: '👷', ring: '#fbbf24', bg: 'rgba(113,63,18,0.92)' },
+    };
+
+    const meta = META[prob];
+    const c = document.createElement('canvas');
+    c.width = 96;
+    c.height = 96;
+    const ctx = c.getContext('2d')!;
+    // Pin pointer + circular alert badge
+    ctx.beginPath();
+    ctx.moveTo(48, 92);
+    ctx.lineTo(36, 72);
+    ctx.lineTo(60, 72);
+    ctx.closePath();
+    ctx.fillStyle = meta.ring;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(48, 44, 34, 0, Math.PI * 2);
+    ctx.fillStyle = meta.bg;
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = meta.ring;
+    ctx.stroke();
+
+    ctx.font = '36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(meta.icon, 48, 46);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    this.problemMats.set(prob, mat);
+    return mat;
+  }
+
+  /**
+   * Iconic Cities: Skylines Floating 3D Problem Status Badges above buildings!
+   * Immediately highlights power/water/road/goods/worker/garbage/fire issues in 3D space.
+   */
+  public rebuildProblemIcons(state: CityState, sampleGroundY?: (wx: number, wz: number) => number) {
+    this.clearGroup(this.problemGroup);
+    this.problemSprites = [];
+    const g = state.grid;
+    const items: { x: number; y: number; prob: ProblemType; prio: number; lv: number; bt: string }[] = [];
+    const PRIO: Record<ProblemType, number> = {
+      fire: 10, road: 9, power: 8, water: 8, sewage: 7, sick: 7, abandoned: 6, garbage: 5, goods: 4, workers: 4, crime: 3,
+    };
+
+    for (let y = 0; y < GRID; y++) {
+      for (let x = 0; x < GRID; x++) {
+        const t = g[y][x];
+        if (!t.problem || !t.building) continue;
+        items.push({ x, y, prob: t.problem, prio: PRIO[t.problem] || 1, lv: t.building.level || 1, bt: t.building.type });
+      }
+    }
+    items.sort((a, b) => b.prio - a.prio);
+    const limit = Math.min(items.length, 40);
+
+    for (let i = 0; i < limit; i++) {
+      const it = items[i];
+      const wx = tileWorldX(it.x);
+      const wz = tileWorldZ(it.y);
+      const gy = sampleGroundY ? sampleGroundY(wx, wz) : Math.max(0, tileWorldY(state, it.x, it.y));
+      const isTall = it.bt === 'res_high' || it.bt === 'com_high' || it.bt === 'office' || it.bt === 'landmark';
+      const roofEst = isTall ? 1.5 + it.lv * 0.55 : 0.75 + it.lv * 0.22;
+      const baseY = gy + roofEst + 0.55;
+
+      const sp = new THREE.Sprite(this.getProblemMaterial(it.prob));
+      sp.position.set(wx, baseY, wz);
+      sp.scale.set(0.72, 0.72, 1);
+      sp.renderOrder = 25;
+      this.problemGroup.add(sp);
+      this.problemSprites.push({ sprite: sp, baseY, phase: (it.x * 1.3 + it.y * 0.7) % 6.28 });
+    }
+  }
+
+  /**
+   * Cities: Skylines Signature Interactive 3D Traffic Route Inspector!
+   * Selecting any road or building illuminates all active Commuter, Freight, Bus,
+   * and Regional Import/Export routes passing through it as glowing 3D ribbons.
+   */
+  public rebuildRouteInspector(
+    state: CityState,
+    routes: RouteInfo[],
+    selected: { x: number; y: number } | null,
+    sampleRoadY?: (wx: number, wz: number) => number
+  ) {
+    this.clearGroup(this.routeGroup);
+    if (!selected) return;
+
+    const g = state.grid;
+    const t = g[selected.y]?.[selected.x];
+    if (!t) return;
+
+    // Selection highlight ring around the inspected tile
+    const sx = tileWorldX(selected.x);
+    const sz = tileWorldZ(selected.y);
+    const sy = sampleRoadY ? sampleRoadY(sx, sz) : Math.max(0.05, tileWorldY(state, selected.x, selected.y));
+    const selRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.42, 0.54, 28),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.92, depthTest: false })
+    );
+    selRing.rotation.x = -Math.PI / 2;
+    selRing.position.set(sx, sy + 0.08, sz);
+    selRing.renderOrder = 22;
+    this.routeGroup.add(selRing);
+
+    // Find target road tiles to match (the tile itself if road, or adjacent road tiles if building)
+    const matchKeys = new Set<number>();
+    if (isRoadType(t.building?.type)) {
+      matchKeys.add(selected.y * GRID + selected.x);
+    } else if (t.building) {
+      for (const [dx, dy] of DIRS) {
+        const nx = selected.x + dx;
+        const ny = selected.y + dy;
+        if (inBounds(nx, ny) && isRoadType(g[ny][nx].building?.type)) {
+          matchKeys.add(ny * GRID + nx);
+        }
+      }
+    }
+    if (matchKeys.size === 0) return;
+
+    let drawn = 0;
+    for (const r of routes) {
+      if (drawn >= 22) break;
+      if (!r.path || r.path.length < 2) continue;
+      let hit = false;
+      for (let i = 0; i < r.path.length; i++) {
+        if (matchKeys.has(r.path[i][1] * GRID + r.path[i][0])) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) continue;
+
+      const purpose = r.purpose || (r.kind === 'bus' ? 'transit' : r.kind === 'truck' ? 'freight' : 'commute');
+      const laneOff = purpose === 'commute' ? -0.1 : purpose === 'freight' ? 0.1 : purpose === 'transit' ? 0 : 0.16;
+      const yLift = 0.24 + (drawn % 5) * 0.045;
+
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i < r.path.length; i++) {
+        const [rx, ry] = r.path[i];
+        const wx = tileWorldX(rx) + laneOff;
+        const wz = tileWorldZ(ry) + laneOff * 0.5;
+        const wy = (sampleRoadY ? sampleRoadY(wx, wz) : Math.max(0.05, tileWorldY(state, rx, ry))) + yLift;
+        pts.push(new THREE.Vector3(wx, wy, wz));
+      }
+      if (pts.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const segs = Math.min(80, Math.max(8, pts.length * 2));
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, segs, 0.052, 5, false),
+        this.routeMats[purpose]
+      );
+      tube.renderOrder = 19;
+      this.routeGroup.add(tube);
+      drawn++;
+    }
+  }
+
   public animate(time: number) {
     // Pulse magnetic snap ring smoothly
     if (this.snapRingMesh.visible) {
@@ -605,6 +796,12 @@ export class ConnectionOverlays {
     }
     // Pulse unpowered power blobs gently
     this.matPowerOff.opacity = 0.28 + Math.sin(time * 5.0) * 0.11;
+
+    // Gentle vertical bobbing on Cities: Skylines floating 3D problem badges
+    for (let i = 0; i < this.problemSprites.length; i++) {
+      const p = this.problemSprites[i];
+      p.sprite.position.y = p.baseY + Math.sin(time * 3.8 + p.phase) * 0.11;
+    }
 
     // Animate glowing water pulses flowing through underground pipes!
     if (this.waterGroup.visible && this.pulseSegments.length > 0) {

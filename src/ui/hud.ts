@@ -52,6 +52,9 @@ export interface HUDCallbacks {
   onDemoCity: () => void;
   onResolveEvent: (pick: 'A' | 'B') => void;
   onUpgradeTileRoad: (x: number, y: number, newType: string) => void;
+  onToggleHistorical: (x: number, y: number) => void;
+  getRouteStats: (x: number, y: number) => { commute: number; freight: number; transit: number; trade: number };
+  onSyncSelection: () => void;
   onBuySector: (secIdx: number) => void;
   onSetSectorSpec: (secIdx: number, spec: DistrictSpecId) => void;
   onTogglePolicy: (id: string) => void;
@@ -505,6 +508,7 @@ export class HUDController {
   }
 
   public updateInspector() {
+    this.cb.onSyncSelection();
     const card = el('inspectorCard');
     const sel = this.cb.getSelectedTile();
     if (!card || !sel) {
@@ -525,8 +529,10 @@ export class HUDController {
     const actEl = el('inspActions');
     if (!titleEl || !bodyEl || !actEl) return;
 
+    const zs = b ? ZONE_SPECS[b.type] : undefined;
+    const lv = b ? Math.min(5, Math.max(1, b.level || 1)) : 0;
     const name = b
-      ? (TOOL_MAP[b.type]?.name || ZONE_SPECS[b.type]?.name || b.type) + (b.level > 1 ? ` Lv.${b.level}` : '')
+      ? (TOOL_MAP[b.type]?.name || zs?.name || b.type) + (zs ? ` Lv.${lv}` : '')
       : t.zone
         ? `${ZONE_SPECS[t.zone]?.name || t.zone} 예정지`
         : t.terrain === 'water'
@@ -534,15 +540,67 @@ export class HUDController {
           : '미개발 지형';
     titleEl.textContent = `${name} (${t.x + 1}, ${t.y + 1})`;
 
+    const PROB_LABEL: Record<string, string> = {
+      fire: '🔥 화재 발생',
+      abandoned: '🏚️ 건물 폐가화',
+      road: '🛣️ 도로 미연결',
+      power: '⚡ 전력 부족',
+      water: '💧 급수 부족/오염',
+      sewage: '🌊 하수 처리 부족',
+      sick: '🏥 시민 질병 발생',
+      garbage: '🗑️ 쓰레기 적체',
+      crime: '🚨 범죄율 경보',
+      goods: '📦 판매 상품 부족',
+      workers: '👷 인력/고학력 부족',
+    };
+
+    const stars = zs ? '★'.repeat(lv) + '☆'.repeat(5 - lv) : '';
+    const rStats = b && (isRoadType(b.type) || zs) ? this.cb.getRouteStats(t.x, t.y) : null;
+    const rTotal = rStats ? rStats.commute + rStats.freight + rStats.transit + rStats.trade : 0;
+
     bodyEl.innerHTML = `
+      ${t.problem ? `<div class="px-2 py-1 rounded-lg bg-rose-500/20 border border-rose-400/50 text-rose-200 font-bold text-[11px] mb-1">${PROB_LABEL[t.problem] || t.problem}</div>` : ''}
+      ${zs ? `
+        <div class="mb-1.5 p-1.5 rounded-lg bg-slate-900/70 border border-[var(--border)]">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-amber-300 tracking-wider font-bold">${stars}</span>
+            <span class="text-[10px] text-sky-300">${b?.historical ? '🏛️ 역사 보존' : `Lv.${lv}/5`}</span>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden mt-1">
+            <div class="h-full bg-gradient-to-r from-sky-400 to-emerald-400" style="width:${lv >= 5 ? 100 : Math.min(100, Math.round(b?.growth || 0))}%"></div>
+          </div>
+          <div class="text-[10px] text-slate-300 mt-1">${t.levelHint || ''}</div>
+        </div>
+      ` : ''}
       <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">특화 지구</span><span class="font-semibold">${spec.icon} ${spec.name}</span></div>
       <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">전기 · 수도</span><span>${t.powered ? '⚡공급' : '⚡미연결'} · ${t.hasWater && t.hasSewage ? '💧완비' : '💧부족'}</span></div>
       <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">행복도 · 지가</span><span>😊 ${t.happiness}% · 💎 ${t.landValue}</span></div>
-      <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">교육 · 공해</span><span>🎓 ${t.eduCov}% · 🌫️ ${t.pollution}</span></div>
+      <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">교육 · 공해 · 소음</span><span>🎓 ${t.eduCov}% · 🌫️ ${t.pollution} · 🔊 ${t.noise}</span></div>
+      ${zs && zs.group !== 'R' ? `<div class="flex justify-between"><span class="text-[var(--muted-foreground)]">인력 · 물류 수급</span><span>👷 ${Math.round((t.workerFill ?? 1) * 100)}% · 📦 ${Math.round((t.goodsSupply ?? 1) * 100)}%</span></div>` : ''}
       ${isRoadType(b?.type) ? `<div class="flex justify-between"><span class="text-[var(--muted-foreground)]">교통 혼잡도</span><span class="${t.congestion > 1 ? 'text-rose-400 font-bold' : 'text-emerald-400'}">${Math.round(t.congestion * 100)}%</span></div>` : ''}
+      ${rStats && rTotal > 0 ? `
+        <div class="mt-1.5 pt-1.5 border-t border-[var(--border)] text-[10px]">
+          <div class="text-sky-300 font-bold mb-0.5">🛣️ 3D 통과 경로 분석 (${rTotal}개 노선)</div>
+          <div class="flex flex-wrap gap-1.5 text-slate-300">
+            <span class="text-sky-300">🚗 통근 ${rStats.commute}</span>
+            <span class="text-amber-300">🚚 화물 ${rStats.freight}</span>
+            <span class="text-emerald-300">🚌 버스 ${rStats.transit}</span>
+            <span class="text-purple-300">🌐 무역 ${rStats.trade}</span>
+          </div>
+        </div>
+      ` : ''}
     `;
 
     actEl.innerHTML = '';
+    if (b && zs) {
+      const hist = document.createElement('button');
+      hist.className = b.historical
+        ? 'flex-1 px-2 py-1 rounded-lg bg-amber-500/30 text-amber-200 font-semibold border border-amber-400/60'
+        : 'flex-1 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold border border-[var(--border)]';
+      hist.textContent = b.historical ? '🏛️ 역사적 건물 해제' : '🏛️ 역사적 건물 보존';
+      hist.addEventListener('click', () => this.cb.onToggleHistorical(t.x, t.y));
+      actEl.appendChild(hist);
+    }
     if (b && isRoadType(b.type) && !b.locked) {
       if (b.type === 'road') {
         const up = document.createElement('button');
@@ -623,11 +681,26 @@ export class HUDController {
     const st = s.stats;
     const sum = el('econSummary');
     if (!sum) return;
+    const [e0, e1, e2, e3] = st.eduTiers || [40, 30, 20, 10];
     sum.innerHTML = `
       <div class="flex justify-between"><span>일일 세수 수입</span><span class="text-emerald-400 font-bold">+₩${st.taxIncome.toLocaleString()}</span></div>
       <div class="flex justify-between"><span>시설·특화·정책 유지비</span><span class="text-rose-400 font-bold">-₩${st.upkeep.toLocaleString()}</span></div>
       <div class="flex justify-between border-t border-[var(--border)] pt-1 text-sm"><span>일일 순수익</span><span class="${st.netIncome >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold">${st.netIncome >= 0 ? '+' : ''}₩${st.netIncome.toLocaleString()}</span></div>
       <div class="flex justify-between text-[11px] text-[var(--muted-foreground)] pt-1"><span>전력 · 수도 · 친환경</span><span>${st.powerUse}/${st.powerGen}MW · ${st.waterUse}/${st.waterGen}m³ · ${st.greenPowerPct}%🌿</span></div>
+      <div class="mt-2 pt-2 border-t border-[var(--border)] space-y-1.5 text-[11px]">
+        <div class="flex justify-between"><span>👷 일자리 · 실업률</span><span class="font-semibold">${st.jobs.toLocaleString()}개 · <span class="${st.unemploymentPct > 15 ? 'text-rose-400' : 'text-emerald-400'}">${st.unemploymentPct}%</span></span></div>
+        <div>
+          <div class="flex justify-between text-[10px] text-[var(--muted-foreground)] mb-0.5"><span>🎓 시민 학력 분포 (미교육·초·고·대졸)</span><span>${e0}/${e1}/${e2}/${e3}%</span></div>
+          <div class="w-full h-2 rounded-full overflow-hidden flex bg-slate-800">
+            <div style="width:${e0}%" class="bg-slate-500"></div>
+            <div style="width:${e1}%" class="bg-amber-400"></div>
+            <div style="width:${e2}%" class="bg-sky-400"></div>
+            <div style="width:${e3}%" class="bg-emerald-400"></div>
+          </div>
+        </div>
+        <div class="flex justify-between"><span>📦 물류·무역 (생산/수요/수입/수출)</span><span class="font-semibold text-amber-300">${st.goodsProduced}/${st.goodsDemand} · ⬇${st.goodsImported} ⬆${st.goodsExported}</span></div>
+        <div class="flex justify-between"><span>🛣️ 간선도로 분담률 · 외부 고속도로 · 경보</span><span>${st.roadHierarchyPct}% · 🌐${st.outsideConnections} · ${st.problemCount > 0 ? `<span class="text-rose-400 font-bold">⚠️${st.problemCount}</span>` : '<span class="text-emerald-400">정상</span>'}</span></div>
+      </div>
     `;
   }
 
