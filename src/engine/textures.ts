@@ -400,16 +400,16 @@ export function createPBRTextures(): PBRTextureSet {
     const py = 128 + Math.sin(a) * rad;
     const lr = 8 + hash2(i, 5.2) * 11;
     const rot = a + (hash2(i, 7.1) - 0.5) * 1.4;
-    const shade = 0.62 + (rad / 110) * 0.32 + hash2(i, 8.8) * 0.22;
-    const r = Math.min(255, Math.round(172 * shade));
-    const g = Math.min(255, Math.round(196 * shade));
-    const b = Math.min(255, Math.round(148 * shade));
+    const shade = 0.72 + (rad / 110) * 0.30 + hash2(i, 8.8) * 0.20;
+    const r = Math.min(255, Math.round(196 * shade));
+    const g = Math.min(255, Math.round(224 * shade));
+    const b = Math.min(255, Math.round(166 * shade));
     fc.fillStyle = `rgb(${r},${g},${b})`;
     fc.beginPath();
     fc.ellipse(px, py, lr, lr * 0.58, rot, 0, Math.PI * 2);
     fc.fill();
     // Delicate central leaf vein highlight
-    fc.strokeStyle = `rgba(245,250,225,0.22)`;
+    fc.strokeStyle = `rgba(250,255,230,0.26)`;
     fc.lineWidth = 1;
     fc.beginPath();
     fc.moveTo(px - Math.cos(rot) * lr * 0.7, py - Math.sin(rot) * lr * 0.7);
@@ -421,7 +421,7 @@ export function createPBRTextures(): PBRTextureSet {
   const [pcardC, pc] = makeCanvas(256);
   pc.clearRect(0, 0, 256, 256);
   // Central dark timber stem
-  pc.strokeStyle = '#3b2e23';
+  pc.strokeStyle = '#4f3d2f';
   pc.lineWidth = 6;
   pc.beginPath();
   pc.moveTo(128, 252);
@@ -439,10 +439,10 @@ export function createPBRTextures(): PBRTextureSet {
       const bx = 128 + frac * maxSpan + jitter;
       const by = cy + Math.abs(frac) * (1 - t) * 26 + (hash2(row, k + 2.3) - 0.5) * 8;
       // Needle spray cluster along bough
-      const shade = 0.56 + t * 0.28 + Math.abs(frac) * 0.22 + hash2(row + k, 9.1) * 0.16;
-      const r = Math.min(255, Math.round(140 * shade));
-      const g = Math.min(255, Math.round(176 * shade));
-      const b = Math.min(255, Math.round(138 * shade));
+      const shade = 0.68 + t * 0.28 + Math.abs(frac) * 0.22 + hash2(row + k, 9.1) * 0.16;
+      const r = Math.min(255, Math.round(166 * shade));
+      const g = Math.min(255, Math.round(206 * shade));
+      const b = Math.min(255, Math.round(160 * shade));
       pc.strokeStyle = `rgb(${r},${g},${b})`;
       pc.lineWidth = 2.4;
       for (let n = 0; n < 7; n++) {
@@ -504,77 +504,83 @@ export function createPBRTextures(): PBRTextureSet {
     rf.fillRect(hash2(i, 5.1) * 256, hash2(i, 6.2) * 256, 2, 2);
   }
 
-  // Weathered Photorealistic Roads
+  // Cities: Skylines Signature Sunlit Concrete Sidewalks & Weathered Medium-Grey Asphalt Roads!
   const [r1c, r1] = makeCanvas(S);
-  fillWeatheredAsphalt(r1, S, '#2b2f36');
-  r1.fillStyle = '#a3aab3';
-  r1.fillRect(0, 0, 58, S); r1.fillRect(S - 58, 0, 58, S);
-  r1.fillStyle = 'rgba(30,41,59,0.2)';
-  for (let y = 0; y < S; y += 64) { r1.fillRect(0, y, 56, 2); r1.fillRect(S - 56, y, 56, 2); }
-  r1.fillStyle = '#ccd2da';
-  r1.fillRect(52, 0, 8, S); r1.fillRect(S - 60, 0, 8, S);
-  r1.fillStyle = 'rgba(0,0,0,0.36)';
-  r1.fillRect(60, 0, 6, S); r1.fillRect(S - 66, 0, 6, S);
-  r1.fillStyle = '#e5bd4a';
+  fillWeatheredAsphalt(r1, S, '#3a414b');
+  r1.fillStyle = '#c4cbd4';
+  r1.fillRect(0, 0, 62, S); r1.fillRect(S - 62, 0, 62, S);
+  r1.fillStyle = 'rgba(51,65,85,0.22)';
+  for (let y = 0; y < S; y += 64) { r1.fillRect(0, y, 60, 2); r1.fillRect(S - 60, y, 60, 2); }
+  r1.fillStyle = '#dfe5ec';
+  r1.fillRect(56, 0, 8, S); r1.fillRect(S - 64, 0, 8, S);
+  r1.fillStyle = 'rgba(0,0,0,0.28)';
+  r1.fillRect(64, 0, 6, S); r1.fillRect(S - 70, 0, 6, S);
+  r1.fillStyle = '#ecc656';
   for (let y = 18; y < S; y += 72) r1.fillRect(S / 2 - 4, y, 8, 38);
-  r1.fillStyle = 'rgba(230,235,240,0.58)';
-  r1.fillRect(74, 0, 4, S); r1.fillRect(S - 78, 0, 4, S);
+  r1.fillStyle = 'rgba(240,245,250,0.68)';
+  r1.fillRect(78, 0, 4, S); r1.fillRect(S - 82, 0, 4, S);
 
   const [avc, av] = makeCanvas(S);
-  fillWeatheredAsphalt(av, S, '#252930');
-  av.fillStyle = '#a3aab3';
-  av.fillRect(0, 0, 42, S); av.fillRect(S - 42, 0, 42, S);
-  av.fillStyle = '#ccd2da';
-  av.fillRect(36, 0, 7, S); av.fillRect(S - 43, 0, 7, S);
+  fillWeatheredAsphalt(av, S, '#343b44');
   av.fillStyle = '#c4cbd4';
+  av.fillRect(0, 0, 46, S); av.fillRect(S - 46, 0, 46, S);
+  av.fillStyle = '#dfe5ec';
+  av.fillRect(40, 0, 7, S); av.fillRect(S - 47, 0, 7, S);
+  av.fillStyle = '#cfd6de';
   av.fillRect(S / 2 - 26, 0, 52, S);
-  av.fillStyle = '#4e6f3d';
+  av.fillStyle = '#678c49';
   av.fillRect(S / 2 - 20, 14, 40, S - 28);
-  av.fillStyle = 'rgba(232,236,242,0.7)';
-  for (let y = 16; y < S; y += 68) { av.fillRect(134, y, 6, 34); av.fillRect(S - 140, y, 6, 34); }
+  av.fillStyle = 'rgba(240,245,250,0.78)';
+  for (let y = 16; y < S; y += 68) { av.fillRect(136, y, 6, 34); av.fillRect(S - 142, y, 6, 34); }
 
   const [hwc, hw] = makeCanvas(S);
-  fillWeatheredAsphalt(hw, S, '#21252b');
-  hw.fillStyle = '#b8c0ca';
-  hw.fillRect(0, 0, 26, S); hw.fillRect(S - 26, 0, 26, S);
-  hw.fillStyle = '#dca238';
+  fillWeatheredAsphalt(hw, S, '#2f353e');
+  hw.fillStyle = '#ccd4de';
+  hw.fillRect(0, 0, 28, S); hw.fillRect(S - 28, 0, 28, S);
+  hw.fillStyle = '#e5ae3c';
   hw.fillRect(S / 2 - 8, 0, 5, S); hw.fillRect(S / 2 + 3, 0, 5, S);
-  hw.fillStyle = 'rgba(235,240,245,0.75)';
+  hw.fillStyle = 'rgba(242,247,252,0.80)';
   for (let y = 18; y < S; y += 64) { hw.fillRect(132, y, 6, 34); hw.fillRect(S - 138, y, 6, 34); }
 
   const [cc, cr] = makeCanvas(S);
-  cr.fillStyle = '#a3aab3'; cr.fillRect(0, 0, S, S);
-  cr.beginPath(); cr.arc(S, S, S - 58, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
-  cr.fillStyle = '#2b2f36'; cr.fill();
-  cr.beginPath(); cr.arc(S, S, S - 58, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#ccd2da'; cr.lineWidth = 9; cr.stroke();
-  cr.beginPath(); cr.arc(S, S, 58, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
-  cr.fillStyle = '#a3aab3'; cr.fill();
-  cr.beginPath(); cr.arc(S, S, 58, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#ccd2da'; cr.lineWidth = 8; cr.stroke();
+  cr.fillStyle = '#c4cbd4'; cr.fillRect(0, 0, S, S);
+  cr.beginPath(); cr.arc(S, S, S - 62, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
+  cr.fillStyle = '#3a414b'; cr.fill();
+  cr.beginPath(); cr.arc(S, S, S - 62, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#dfe5ec'; cr.lineWidth = 9; cr.stroke();
+  cr.beginPath(); cr.arc(S, S, 62, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
+  cr.fillStyle = '#c4cbd4'; cr.fill();
+  cr.beginPath(); cr.arc(S, S, 62, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#dfe5ec'; cr.lineWidth = 8; cr.stroke();
   cr.beginPath(); cr.arc(S, S, S / 2, Math.PI, Math.PI * 1.5);
-  cr.strokeStyle = '#e5bd4a'; cr.lineWidth = 8; cr.setLineDash([36, 32]); cr.stroke(); cr.setLineDash([]);
+  cr.strokeStyle = '#ecc656'; cr.lineWidth = 8; cr.setLineDash([36, 32]); cr.stroke(); cr.setLineDash([]);
 
   const [xc, xctx] = makeCanvas(S);
-  fillWeatheredAsphalt(xctx, S, '#282c33');
+  fillWeatheredAsphalt(xctx, S, '#373e48');
   const corners: [number, number][] = [[0, 0], [S, 0], [0, S], [S, S]];
   for (const [cx, cy] of corners) {
-    xctx.beginPath(); xctx.arc(cx, cy, 62, 0, Math.PI * 2);
-    xctx.fillStyle = '#a3aab3'; xctx.fill();
-    xctx.strokeStyle = '#ccd2da'; xctx.lineWidth = 7; xctx.stroke();
+    xctx.beginPath(); xctx.arc(cx, cy, 66, 0, Math.PI * 2);
+    xctx.fillStyle = '#c4cbd4'; xctx.fill();
+    xctx.strokeStyle = '#dfe5ec'; xctx.lineWidth = 7; xctx.stroke();
   }
-  xctx.fillStyle = 'rgba(232,236,240,0.74)';
-  for (let i = 88; i <= S - 108; i += 40) {
-    xctx.fillRect(i, 20, 19, 44); xctx.fillRect(i, S - 64, 19, 44);
-    xctx.fillRect(20, i, 44, 19); xctx.fillRect(S - 64, i, 44, 19);
+  xctx.fillStyle = 'rgba(242,246,250,0.82)';
+  for (let i = 92; i <= S - 112; i += 38) {
+    xctx.fillRect(i, 18, 18, 44); xctx.fillRect(i, S - 62, 18, 44);
+    xctx.fillRect(18, i, 44, 18); xctx.fillRect(S - 62, i, 44, 18);
   }
+  // Crisp white stop bars behind crosswalks
+  xctx.fillStyle = 'rgba(242,246,250,0.65)';
+  xctx.fillRect(88, 70, S - 176, 5);
+  xctx.fillRect(88, S - 75, S - 176, 5);
+  xctx.fillRect(70, 88, 5, S - 176);
+  xctx.fillRect(S - 75, 88, 5, S - 176);
 
   const [rbc, rb] = makeCanvas(S);
-  fillWeatheredAsphalt(rb, S, '#262a31');
-  for (const [cx, cy] of corners) { rb.beginPath(); rb.arc(cx, cy, 46, 0, Math.PI * 2); rb.fillStyle = '#a3aab3'; rb.fill(); }
+  fillWeatheredAsphalt(rb, S, '#353c46');
+  for (const [cx, cy] of corners) { rb.beginPath(); rb.arc(cx, cy, 48, 0, Math.PI * 2); rb.fillStyle = '#c4cbd4'; rb.fill(); }
   rb.beginPath(); rb.arc(S / 2, S / 2, 184, 0, Math.PI * 2);
-  rb.strokeStyle = 'rgba(232,236,242,0.7)'; rb.lineWidth = 8; rb.setLineDash([30, 26]); rb.stroke(); rb.setLineDash([]);
-  rb.beginPath(); rb.arc(S / 2, S / 2, 118, 0, Math.PI * 2); rb.fillStyle = '#ccd2da'; rb.fill();
-  rb.beginPath(); rb.arc(S / 2, S / 2, 102, 0, Math.PI * 2); rb.fillStyle = '#4e6f3d'; rb.fill();
-  rb.beginPath(); rb.arc(S / 2, S / 2, 48, 0, Math.PI * 2); rb.fillStyle = '#2d6c88'; rb.fill();
+  rb.strokeStyle = 'rgba(242,246,250,0.78)'; rb.lineWidth = 8; rb.setLineDash([30, 26]); rb.stroke(); rb.setLineDash([]);
+  rb.beginPath(); rb.arc(S / 2, S / 2, 118, 0, Math.PI * 2); rb.fillStyle = '#dfe5ec'; rb.fill();
+  rb.beginPath(); rb.arc(S / 2, S / 2, 102, 0, Math.PI * 2); rb.fillStyle = '#678c49'; rb.fill();
+  rb.beginPath(); rb.arc(S / 2, S / 2, 48, 0, Math.PI * 2); rb.fillStyle = '#33768a'; rb.fill();
 
   const [rbmpC, rbmp] = makeCanvas(256);
   rbmp.fillStyle = '#808080'; rbmp.fillRect(0, 0, 256, 256);
@@ -599,22 +605,22 @@ export function createPBRTextures(): PBRTextureSet {
       // Recessed glossy reflective glass pane!
       bbmp.fillStyle = '#242424';
       bbmp.fillRect(wx, wy, ww, wh);
-      brgh.fillStyle = '#141414'; // Mirror-smooth architectural glass
+      brgh.fillStyle = '#121212'; // Mirror-smooth architectural glass
       brgh.fillRect(wx, wy, ww, wh);
-      bmet.fillStyle = '#e8e8e8'; // High Fresnel sky/cloud reflection on glass
+      bmet.fillStyle = '#f0f0f0'; // Crisp Cities: Skylines sky/cloud reflection on glass
       bmet.fillRect(wx, wy, ww, wh);
     }
   }
 
-  // 8 Sunlit Photorealistic Architectural PBR Facades (crisp limestone, sky glass, champagne bronze, terracotta)
-  const [resLow, resLowEmi] = createFacadePair('#eae2d3', '#cdc2ae', '#aba08e', '#586d80', '#24313d', '#fef08a', '#fde68a', 4, 4, 1.1, 'brick');
-  const [resHigh, resHighEmi] = createFacadePair('#dde2e8', '#b4bec9', '#8e98a4', '#5c7891', '#212e3c', '#fed7aa', '#fef08a', 6, 9, 2.3, 'modern');
-  const [comHigh, comHighEmi] = createFacadePair('#557391', '#273a4e', '#a9b4c0', '#96b9d6', '#1e3347', '#fef08a', '#bae6fd', 8, 10, 3.7, 'glass');
-  const [office, officeEmi] = createFacadePair('#4b6c80', '#213647', '#bcc6d1', '#95bed6', '#1d3242', '#e0f2fe', '#bae6fd', 8, 10, 5.1, 'glass');
-  const [goldGlass, goldGlassEmi] = createFacadePair('#ab916e', '#4f402e', '#cbbba1', '#dec8a4', '#33281b', '#fef08a', '#fed7aa', 8, 10, 6.4, 'glass');
-  const [modernWhite, modernWhiteEmi] = createFacadePair('#f0f2f4', '#cfd5dc', '#dce1e6', '#5c7c94', '#1d2d3b', '#fef3c7', '#e0f2fe', 6, 9, 7.8, 'modern');
-  const [terracottaBrick, terracottaBrickEmi] = createFacadePair('#b56854', '#854738', '#d0c4b2', '#526270', '#212c36', '#fde047', '#fed7aa', 5, 7, 8.9, 'brick');
-  const [artDecoStone, artDecoStoneEmi] = createFacadePair('#e2dcd0', '#b5ada0', '#ece6db', '#536475', '#212c38', '#fef08a', '#fde68a', 6, 9, 9.7, 'deco');
+  // 8 Luminous Cities: Skylines Daylight Architectural Facades (gleaming blue/teal glass, warm limestone, Scandinavian white, brick)
+  const [resLow, resLowEmi] = createFacadePair('#f2eadb', '#d9ceb8', '#b8ab96', '#678299', '#2b3b4a', '#fef08a', '#fde68a', 4, 4, 1.1, 'brick');
+  const [resHigh, resHighEmi] = createFacadePair('#e6ebf0', '#c2ccd6', '#9aa5b2', '#6e8fa8', '#273847', '#fed7aa', '#fef08a', 6, 9, 2.3, 'modern');
+  const [comHigh, comHighEmi] = createFacadePair('#6d94ba', '#35516e', '#bcc7d4', '#b0d4f0', '#27435c', '#fef08a', '#bae6fd', 8, 10, 3.7, 'glass');
+  const [office, officeEmi] = createFacadePair('#5c8fa3', '#2a4a5c', '#cbd5df', '#a6d6e8', '#224052', '#e0f2fe', '#bae6fd', 8, 10, 5.1, 'glass');
+  const [goldGlass, goldGlassEmi] = createFacadePair('#bfa37c', '#615038', '#d9cab0', '#ebd7b5', '#3d3020', '#fef08a', '#fed7aa', 8, 10, 6.4, 'glass');
+  const [modernWhite, modernWhiteEmi] = createFacadePair('#f5f7f9', '#d8dee6', '#e4e9ef', '#6f92ad', '#243747', '#fef3c7', '#e0f2fe', 6, 9, 7.8, 'modern');
+  const [terracottaBrick, terracottaBrickEmi] = createFacadePair('#c7755f', '#945140', '#dcd0be', '#627687', '#273440', '#fde047', '#fed7aa', 5, 7, 8.9, 'brick');
+  const [artDecoStone, artDecoStoneEmi] = createFacadePair('#ebe5d8', '#c4bcb0', '#f3eee4', '#63788c', '#283645', '#fef08a', '#fde68a', 6, 9, 9.7, 'deco');
 
   const [indC, ind] = makeCanvas(S);
   ind.fillStyle = '#8b867e'; ind.fillRect(0, 0, S, S);

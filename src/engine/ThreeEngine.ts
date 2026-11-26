@@ -50,6 +50,7 @@ const PhotorealPostShader = {
     uFar: { value: 380.0 },
     uNight: { value: 0.0 },
     uSunset: { value: 0.0 },
+    uFogCol: { value: new THREE.Color(0xd4e8f8) },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -66,6 +67,7 @@ const PhotorealPostShader = {
     uniform float uFar;
     uniform float uNight;
     uniform float uSunset;
+    uniform vec3 uFogCol;
     varying vec2 vUv;
 
     float readLinearDepth(vec2 uv) {
@@ -77,24 +79,41 @@ const PhotorealPostShader = {
       vec2 texel = 1.0 / uResolution;
       vec4 tex = texture2D(tDiffuse, vUv);
       vec3 col = tex.rgb;
-
-      // 1. Subtle DSLR Unsharp Mask (razor-sharp window mullions, leaves & road markings)
-      vec3 blur = (
-        texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)).rgb +
-        texture2D(tDiffuse, vUv - vec2(texel.x, 0.0)).rgb +
-        texture2D(tDiffuse, vUv + vec2(0.0, texel.y)).rgb +
-        texture2D(tDiffuse, vUv - vec2(0.0, texel.y)).rgb
-      ) * 0.25;
-      col = max(vec3(0.0), col + (col - blur) * mix(0.28, 0.14, uNight));
-
-      // 2. Real Hardware-Depth Screen-Space Ambient Occlusion (SSAO — zero extra scene passes!)
       float rawD = texture2D(tDepth, vUv).x;
+      float centerZ = rawD < 0.9992 ? readLinearDepth(vUv) : uFar;
+
+      // 1. Signature Cities: Skylines Subtle Optical Tilt-Shift Depth of Field (far horizon & extreme bottom edge)
+      float edgeBand = smoothstep(0.25, 0.50, abs(vUv.y - 0.50));
+      float farMask = smoothstep(22.0, 68.0, centerZ);
+      float nearBottomMask = smoothstep(0.37, 0.50, 0.50 - vUv.y);
+      float dof = clamp(edgeBand * max(farMask, nearBottomMask), 0.0, 1.0);
+
+      if (dof > 0.015) {
+        float r = dof * 2.4;
+        vec3 bokeh = (
+          texture2D(tDiffuse, clamp(vUv + vec2(r, 0.0) * texel, 0.001, 0.999)).rgb +
+          texture2D(tDiffuse, clamp(vUv + vec2(-r, 0.0) * texel, 0.001, 0.999)).rgb +
+          texture2D(tDiffuse, clamp(vUv + vec2(r * 0.5, r * 0.866) * texel, 0.001, 0.999)).rgb +
+          texture2D(tDiffuse, clamp(vUv + vec2(-r * 0.5, r * 0.866) * texel, 0.001, 0.999)).rgb +
+          texture2D(tDiffuse, clamp(vUv + vec2(r * 0.5, -r * 0.866) * texel, 0.001, 0.999)).rgb +
+          texture2D(tDiffuse, clamp(vUv + vec2(-r * 0.5, -r * 0.866) * texel, 0.001, 0.999)).rgb
+        ) / 6.0;
+        col = mix(col, bokeh, dof * 0.58);
+      } else {
+        // Crisp DSLR Unsharp Mask in the focal city center (sharp mullions, crosswalks, foliage & traffic lights)
+        vec3 blur = (
+          texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)).rgb +
+          texture2D(tDiffuse, vUv - vec2(texel.x, 0.0)).rgb +
+          texture2D(tDiffuse, vUv + vec2(0.0, texel.y)).rgb +
+          texture2D(tDiffuse, vUv - vec2(0.0, texel.y)).rgb
+        ) * 0.25;
+        col = max(vec3(0.0), col + (col - blur) * mix(0.28, 0.14, uNight));
+      }
+
+      // 2. Real Hardware-Depth SSAO with Luminous Sky-Blue Ambient Shadow Bounce + Aerial Perspective Haze
       if (rawD < 0.9992) {
-        float centerZ = readLinearDepth(vUv);
         float ao = 0.0;
-        // Scale kernel gently with distance so skyscrapers & streets both get rich contact GI shadows
-        float radPx = clamp(240.0 / max(centerZ, 8.0), 3.0, 14.0);
-        // 8-tap golden-angle rotated spiral kernel
+        float radPx = clamp(235.0 / max(centerZ, 8.0), 3.0, 13.0);
         float hashAng = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318;
         for (int i = 0; i < 8; i++) {
           float fi = float(i);
@@ -103,32 +122,39 @@ const PhotorealPostShader = {
           vec2 suv = clamp(vUv + vec2(cos(ang), sin(ang)) * r * texel, 0.001, 0.999);
           float sz = readLinearDepth(suv);
           float dz = centerZ - sz;
-          // Occlude if neighboring geometry is closer within physical contact radius (0.12m..2.8m)
-          float rangeCheck = smoothstep(3.2, 0.15, abs(dz));
+          float rangeCheck = smoothstep(3.0, 0.15, abs(dz));
           ao += smoothstep(0.06, 0.55, dz) * rangeCheck;
         }
-        ao = clamp(1.0 - (ao / 8.0) * mix(0.62, 0.34, uNight), 0.48, 1.0);
-        col *= ao;
+        float aoDistFade = smoothstep(95.0, 38.0, centerZ);
+        float aoStrength = mix(0.52, 0.30, uNight) * aoDistFade;
+        float aoFactor = clamp(1.0 - (ao / 8.0) * aoStrength, 0.56, 1.0);
+        // Luminous sky-blue shadow bounce (never crushes shadows to muddy black!)
+        vec3 aoBounce = mix(vec3(0.82, 0.89, 1.0), vec3(0.76, 0.82, 0.96), uNight);
+        col *= mix(aoBounce * aoFactor, vec3(1.0), aoFactor);
+
+        // 3. Physical Depth-Based Rayleigh Aerial Perspective Haze (distant mountains & horizon scale!)
+        float haze = (1.0 - exp(-max(0.0, centerZ - 28.0) * mix(0.0082, 0.0038, uNight))) * mix(0.52, 0.28, uNight);
+        col = mix(col, uFogCol, clamp(haze, 0.0, 0.62));
       }
 
-      // 3. Natural Photographic Filmic S-Curve Contrast
+      // 4. Cities: Skylines Temperate Daylight Filmic S-Curve & Clean Contrast
       vec3 scurve = col * col * (3.0 - 2.0 * col);
-      col = mix(col, scurve, 0.20);
+      col = mix(col, scurve, 0.17);
 
-      // 4. Aerial-Photo Split-Toning (cool atmospheric shadows, crisp warm sunlit highlights)
+      // 5. Crisp Sky-Blue Shadows + Warm Sunlit Highlights Split-Toning
       float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      vec3 shadowTint = mix(vec3(0.95, 0.98, 1.04), vec3(0.90, 0.95, 1.08), uNight);
-      vec3 highlightTint = mix(vec3(1.03, 1.01, 0.97), vec3(1.09, 0.96, 0.87), uSunset);
-      col *= mix(shadowTint, highlightTint, smoothstep(0.16, 0.84, lum));
+      vec3 shadowTint = mix(vec3(0.94, 0.98, 1.06), vec3(0.90, 0.95, 1.09), uNight);
+      vec3 highlightTint = mix(vec3(1.04, 1.02, 0.98), vec3(1.10, 0.96, 0.86), uSunset);
+      col *= mix(shadowTint, highlightTint, smoothstep(0.18, 0.84, lum));
 
-      // Natural saturation calibration
-      float sat = mix(0.95, 1.03, uNight);
+      // Vibrant yet natural Temperate Daylight saturation
+      float sat = mix(1.04, 1.02, uNight);
       col = mix(vec3(lum), col, sat);
 
-      // Subtle optical lens vignette
+      // Delicate optical lens vignette
       vec2 d = vUv - 0.5;
-      float vig = smoothstep(0.88, 0.28, dot(d, d));
-      col *= mix(0.90, 1.0, vig);
+      float vig = smoothstep(0.90, 0.30, dot(d, d));
+      col *= mix(0.92, 1.0, vig);
 
       gl_FragColor = vec4(clamp(col, 0.0, 1.0), tex.a);
     }
@@ -215,6 +241,7 @@ export class ThreeEngine {
   private fireCoords: THREE.Vector3[] = [];
 
   private nightMaterials: THREE.MeshStandardMaterial[] = [];
+  private foliageMaterials: THREE.MeshStandardMaterial[] = [];
   private lampBulbMat: THREE.MeshStandardMaterial;
   private beaconMat: THREE.MeshStandardMaterial;
 
@@ -257,19 +284,19 @@ export class ThreeEngine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.06;
+    this.renderer.toneMappingExposure = 1.14;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // 2. Scene, Atmospheric Aerial Perspective Fog, Camera & Cloud-Reflecting IBL Cubemaps
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0xd0e0ed, 0.0044);
+    this.scene.fog = new THREE.FogExp2(0xd6e8f7, 0.0034);
     this.camera = new THREE.PerspectiveCamera(43, 16 / 9, 0.6, 380);
 
-    this.envDay = buildProceduralEnvironment(this.renderer, 0x3b6fa8, 0xdbe8f4, 0x4b5645, 2.5);
+    this.envDay = buildProceduralEnvironment(this.renderer, 0x3b7ec7, 0xe2f0fc, 0x627750, 2.8);
     this.envSunset = buildProceduralEnvironment(this.renderer, 0x2b365e, 0xe89966, 0x382e2b, 3.0);
     this.envNight = buildProceduralEnvironment(this.renderer, 0x050a18, 0x162640, 0x090e1a, 0.75);
     this.scene.environment = this.envDay;
-    this.scene.environmentIntensity = 1.0;
+    this.scene.environmentIntensity = 1.12;
 
     // 3. Post-Processing Pipeline with Hardware DepthTexture for Zero-Overhead Real SSAO!
     const initRt = new THREE.WebGLRenderTarget(1280, 720, {
@@ -289,8 +316,8 @@ export class ThreeEngine {
     // 4. High-Res Procedural PBR Textures (Normal Maps + Metalness/Roughness + Botanical Cards)
     this.textures = createPBRTextures();
 
-    // 5. Physically Balanced Three-Point Outdoor Lighting (Crisp 4K Sun + Cool Sky Bounce + Hemisphere)
-    this.hemiLight = new THREE.HemisphereLight(0xdcebf7, 0x525d49, 0.72);
+    // 5. Physically Balanced Three-Point Outdoor Lighting (Cities: Skylines Temperate Daylight)
+    this.hemiLight = new THREE.HemisphereLight(0xdaf0ff, 0x768a62, 0.94);
     this.scene.add(this.hemiLight);
 
     const gl = this.renderer.getContext();
@@ -300,7 +327,7 @@ export class ThreeEngine {
     );
     const isSoftwareGL = /swiftshader|llvmpipe|software/i.test(rendererInfo);
     const shadowRes = !isSoftwareGL && typeof window !== 'undefined' && window.innerWidth >= 1024 ? 4096 : 2048;
-    this.sunLight = new THREE.DirectionalLight(0xfff6e3, 2.45);
+    this.sunLight = new THREE.DirectionalLight(0xfff8eb, 2.65);
     this.sunLight.position.set(34, 52, 28);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.set(shadowRes, shadowRes);
@@ -316,17 +343,17 @@ export class ThreeEngine {
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
 
-    // Opposite cool sky bounce fill light for crisp sunlit/shadow contrast
-    this.fillLight = new THREE.DirectionalLight(0x9bc0e6, 0.48);
+    // Opposite luminous sky-blue bounce fill light for authentic Cities: Skylines shadow illumination
+    this.fillLight = new THREE.DirectionalLight(0x8ec5fa, 0.64);
     this.fillLight.position.set(-38, 24, -30);
     this.scene.add(this.fillLight);
 
     // 6. Photorealistic Rayleigh + Mie Scattering Sky Dome
     this.skyUniforms = {
-      uTopCol: { value: new THREE.Color(0x36669c) },
-      uHorCol: { value: new THREE.Color(0xd2e2ef) },
+      uTopCol: { value: new THREE.Color(0x3779c4) },
+      uHorCol: { value: new THREE.Color(0xd6e9f8) },
       uSunDir: { value: new THREE.Vector3(0.5, 0.72, 0.4).normalize() },
-      uSunCol: { value: new THREE.Color(0xfff3d4) },
+      uSunCol: { value: new THREE.Color(0xfff6dc) },
       uTime: { value: 0 },
     };
     this.skyMesh = new THREE.Mesh(
@@ -381,10 +408,10 @@ export class ThreeEngine {
     this.waterUniforms = {
       uTime: { value: 0 },
       uSunDir: { value: new THREE.Vector3(0.5, 0.72, 0.4).normalize() },
-      uSunCol: { value: new THREE.Color(0xfff5dc) },
-      uWaterDeep: { value: new THREE.Color(0x0d283b) },
-      uWaterShallow: { value: new THREE.Color(0x2a5c68) },
-      uSkyCol: { value: new THREE.Color(0xc8daea) },
+      uSunCol: { value: new THREE.Color(0xfff7df) },
+      uWaterDeep: { value: new THREE.Color(0x154360) },
+      uWaterShallow: { value: new THREE.Color(0x32788c) },
+      uSkyCol: { value: new THREE.Color(0xd4e8f8) },
     };
 
     // 8. Groups, Overlays & Living Atmosphere
@@ -512,19 +539,19 @@ export class ThreeEngine {
       let y = -0.82;
       if (inCore) {
         y = -0.9;
-        c.setHex(0x163544);
+        c.setHex(0x1b465c);
       } else if (isSouthOcean) {
         y = -0.78;
-        c.setHex(0x0d2b3e);
+        c.setHex(0x143f5c);
       } else {
         const ridge =
           Math.pow(Math.min(1, distOut / 46), 1.55) *
           (8.2 + Math.sin(x * 0.075) * 4.5 + Math.cos(z * 0.085) * 4.0 + Math.sin((x + z) * 0.048) * 5.0);
         y = -0.06 + Math.max(0, ridge);
-        if (y > 12.5) c.setHex(0xdbe2ea);
-        else if (y > 8.2) c.setHex(0x687078);
-        else if (y > 3.6) c.setHex(0x3e4f3b);
-        else c.setHex(0x526146);
+        if (y > 12.5) c.setHex(0xe6eef6);
+        else if (y > 8.2) c.setHex(0x7c8690);
+        else if (y > 3.6) c.setHex(0x4d6847);
+        else c.setHex(0x6c8554);
       }
       pos.setY(i, y);
       cols[i * 3] = c.r;
@@ -552,10 +579,10 @@ export class ThreeEngine {
     const ocean = new THREE.Mesh(
       oceanGeo,
       new THREE.MeshStandardMaterial({
-        color: 0x0d283b,
-        roughness: 0.12,
+        color: 0x164564,
+        roughness: 0.11,
         metalness: 0.72,
-        envMapIntensity: 1.4,
+        envMapIntensity: 1.5,
       })
     );
     ocean.position.set(0, -0.24, 92);
@@ -586,26 +613,26 @@ export class ThreeEngine {
       return t.noise > 18 ? 0xef4444 : t.noise > 9 ? 0xf59e0b : t.noise > 3 ? 0xfde047 : 0x22c55e;
     }
 
-    if (t.terrain === 'water') return 0x1b3744;
+    if (t.terrain === 'water') return 0x1e4a5e;
     if (t.terrain === 'sand') {
-      return unlocked ? (t.hash > 0.5 ? 0xd2c2a2 : 0xc2b08d) : 0x918775;
+      return unlocked ? (t.hash > 0.5 ? 0xe0d1b0 : 0xd4c39e) : 0xa29884;
     }
-    if (!unlocked) return t.hash > 0.5 ? 0x4b5944 : 0x43503d;
-    if (t.pollution > 18) return 0x73694e;
+    if (!unlocked) return t.hash > 0.5 ? 0x5d7052 : 0x54664a;
+    if (t.pollution > 18) return 0x857859;
 
-    // Photorealistic aerial-photo multi-biome meadow, olive uplands & rocky scrub
+    // Cities: Skylines Temperate sunlit meadow greens, golden-sage uplands & coastal grass
     const natY = sampleNaturalElevation(x, y, t.elev, false, false);
     const patch = Math.sin(x * 0.23 + y * 0.17) * 0.5 + 0.5;
-    let baseHex = patch > 0.62 ? 0x61734e : patch > 0.3 ? 0x566846 : 0x4d5e3f;
-    if (natY > 0.42) baseHex = patch > 0.55 ? 0x767c5f : 0x686f55;
-    else if (natY > 0.2) baseHex = patch > 0.5 ? 0x6a7652 : 0x5c6948;
-    else if (t.isCoast) baseHex = 0x64734f;
+    let baseHex = patch > 0.62 ? 0x799552 : patch > 0.3 ? 0x6d894a : 0x627d44;
+    if (natY > 0.42) baseHex = patch > 0.55 ? 0x879962 : 0x788a56;
+    else if (natY > 0.2) baseHex = patch > 0.5 ? 0x7d9257 : 0x6f844e;
+    else if (t.isCoast) baseHex = 0x799155;
 
     // Subtle graded development lot tint instead of flat neon toy squares!
     if (t.zone && !t.building) {
       const col = TOOL_MAP['zone_' + t.zone]?.zCol;
       if (col) {
-        return new THREE.Color(baseHex).lerp(new THREE.Color(col), 0.24).getHex();
+        return new THREE.Color(baseHex).lerp(new THREE.Color(col), 0.26).getHex();
       }
     }
     return baseHex;
@@ -635,6 +662,7 @@ export class ThreeEngine {
       }
     }
     this.nightMaterials = [];
+    this.foliageMaterials = [];
     this.rotorPositions = [];
     this.fireCoords = [];
 
@@ -694,7 +722,7 @@ export class ThreeEngine {
 
     const terrainMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.92,
+      roughness: 0.90,
       metalness: 0.02,
     });
     if (activeView === 'none') {
@@ -717,13 +745,13 @@ export class ThreeEngine {
             // Dual-scale macro aerial-photo meadow/soil mottling (eliminates any tiling!)
             float m1 = sin(vTerrainWorldPos.x * 0.27 + vTerrainWorldPos.z * 0.19) * cos(vTerrainWorldPos.z * 0.31 - vTerrainWorldPos.x * 0.14);
             float m2 = sin(vTerrainWorldPos.x * 0.85 - vTerrainWorldPos.z * 0.72) * 0.5 + 0.5;
-            diffuseColor.rgb *= (0.90 + 0.14 * m1 + 0.06 * (m2 - 0.5));
+            diffuseColor.rgb *= (0.93 + 0.12 * m1 + 0.05 * (m2 - 0.5));
             // Automatic steep-slope rocky embankment exposure
             float slopeRock = smoothstep(0.92, 0.74, vTerrainWorldNorm.y);
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.41, 0.38) * (0.85 + 0.25 * m2), slopeRock * 0.85);
-            // Realistic dark damp soil/sand right along the waterline (-0.17)
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.50, 0.50, 0.48) * (0.86 + 0.22 * m2), slopeRock * 0.85);
+            // Realistic damp soil/sand right along the waterline (-0.17)
             float wetEdge = smoothstep(-0.01, -0.18, vTerrainWorldPos.y);
-            diffuseColor.rgb *= mix(1.0, 0.62, wetEdge);
+            diffuseColor.rgb *= mix(1.0, 0.70, wetEdge);
             `
           )
           .replace(
@@ -1071,15 +1099,17 @@ export class ThreeEngine {
     commitBucket(B.bCylinder, this.geoCylinder, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.58, metalness: 0.24 }));
     commitBucket(B.bTreeTrunk, this.geoCylinder, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.96 }));
 
-    // Alpha-Tested Photorealistic Botanical Broadleaf & Conifer Spruce Foliage!
+    // Alpha-Tested Photorealistic Botanical Broadleaf & Conifer Spruce Foliage with Subsurface Translucency!
     const broadleafMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: this.textures.foliageCardRGBA,
       alphaTest: 0.42,
       side: THREE.DoubleSide,
       vertexColors: true,
-      roughness: 0.84,
+      roughness: 0.80,
       metalness: 0.0,
+      emissive: new THREE.Color(0x1f3616),
+      emissiveIntensity: 0.28,
     });
     const pineMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -1087,9 +1117,12 @@ export class ThreeEngine {
       alphaTest: 0.36,
       side: THREE.DoubleSide,
       vertexColors: true,
-      roughness: 0.86,
+      roughness: 0.82,
       metalness: 0.0,
+      emissive: new THREE.Color(0x193018),
+      emissiveIntensity: 0.30,
     });
+    this.foliageMaterials.push(broadleafMat, pineMat);
     commitBucket(B.bBroadleaf, this.geoFoliage, broadleafMat);
     commitBucket(B.bBush, this.geoBush, broadleafMat);
     commitBucket(B.bPine, this.geoPine, pineMat);
@@ -1102,7 +1135,7 @@ export class ThreeEngine {
         normalMap: this.textures.rockNormal,
         normalScale: new THREE.Vector2(1.4, 1.4),
         vertexColors: true,
-        roughness: 0.92,
+        roughness: 0.90,
         metalness: 0.04,
       })
     );
@@ -1149,7 +1182,7 @@ export class ThreeEngine {
       this.scene.environment =
         desiredEnv === 'night' ? this.envNight : desiredEnv === 'sunset' ? this.envSunset : this.envDay;
     }
-    this.scene.environmentIntensity = desiredEnv === 'night' ? 0.48 : desiredEnv === 'sunset' ? 1.02 : 0.92;
+    this.scene.environmentIntensity = desiredEnv === 'night' ? 0.52 : desiredEnv === 'sunset' ? 1.08 : 1.12;
 
     const sunDir = new THREE.Vector3(Math.cos(sunAng) * 0.65, Math.max(0.16, Math.sin(sunAng)), 0.45).normalize();
     this.sunLight.position.set(
@@ -1167,16 +1200,17 @@ export class ThreeEngine {
     this.sunLight.shadow.camera.bottom = -sd;
     this.sunLight.shadow.camera.updateProjectionMatrix();
 
-    const sunCol = new THREE.Color(0xfff5df).lerp(new THREE.Color(0xf79452), sunset).lerp(new THREE.Color(0x4c6b9e), night);
-    const skyTop = new THREE.Color(0x36669c).lerp(new THREE.Color(0x2a355c), sunset).lerp(new THREE.Color(0x050a17), night);
-    const skyHor = new THREE.Color(0xd0e1ee).lerp(new THREE.Color(0xe69562), sunset * 0.85).lerp(new THREE.Color(0x111c32), night);
+    const sunCol = new THREE.Color(0xfff8ea).lerp(new THREE.Color(0xff9c58), sunset).lerp(new THREE.Color(0x5274ab), night);
+    const skyTop = new THREE.Color(0x3779c4).lerp(new THREE.Color(0x2d3b66), sunset).lerp(new THREE.Color(0x060c1a), night);
+    const skyHor = new THREE.Color(0xd5e9f8).lerp(new THREE.Color(0xee9c68), sunset * 0.85).lerp(new THREE.Color(0x132038), night);
 
     this.sunLight.color.copy(sunCol);
-    this.sunLight.intensity = Math.max(0.36, 2.35 * (1 - night * 0.8));
-    this.fillLight.intensity = Math.max(0.22, 0.48 * (1 - night * 0.45));
-    this.fillLight.color.setHex(0x9bc0e6).lerp(new THREE.Color(0x9b89c4), sunset * 0.5).lerp(new THREE.Color(0x1d356b), night * 0.7);
-    this.hemiLight.intensity = Math.max(0.28, 0.68 * (1 - night * 0.55));
+    this.sunLight.intensity = Math.max(0.38, 2.65 * (1 - night * 0.8));
+    this.fillLight.intensity = Math.max(0.24, 0.64 * (1 - night * 0.48));
+    this.fillLight.color.setHex(0x8ec5fa).lerp(new THREE.Color(0xa694d0), sunset * 0.5).lerp(new THREE.Color(0x1f3a75), night * 0.72);
+    this.hemiLight.intensity = Math.max(0.32, 0.94 * (1 - night * 0.58));
     this.hemiLight.color.copy(skyHor);
+    this.hemiLight.groundColor.setHex(0x768a62).lerp(new THREE.Color(0x5c4c40), sunset * 0.55).lerp(new THREE.Color(0x141d2e), night * 0.85);
     (this.scene.fog as THREE.FogExp2).color.copy(skyHor);
 
     this.skyUniforms.uTopCol.value.copy(skyTop);
@@ -1189,18 +1223,23 @@ export class ThreeEngine {
     this.waterUniforms.uSunDir.value.copy(sunDir);
     this.waterUniforms.uSunCol.value.copy(sunCol);
     this.waterUniforms.uSkyCol.value.copy(skyHor);
-    this.waterUniforms.uWaterDeep.value.setHex(0x0f2c40).lerp(new THREE.Color(0x051120), night * 0.84);
-    this.waterUniforms.uWaterShallow.value.setHex(0x285664).lerp(new THREE.Color(0x0b2134), night * 0.84);
+    this.waterUniforms.uWaterDeep.value.setHex(0x154360).lerp(new THREE.Color(0x061528), night * 0.84);
+    this.waterUniforms.uWaterShallow.value.setHex(0x32788c).lerp(new THREE.Color(0x0d283e), night * 0.84);
 
     for (const m of this.nightMaterials) {
       m.emissiveIntensity = night * 1.55 + sunset * 0.48;
     }
+    const foliageScatter = Math.max(0.02, (1 - night) * 0.28);
+    for (const fm of this.foliageMaterials) {
+      fm.emissiveIntensity = foliageScatter;
+    }
     this.lampBulbMat.emissiveIntensity = 0.16 + night * 2.25 + sunset * 0.85;
     this.beaconMat.emissiveIntensity = 0.16 + night * 1.85 + sunset * 0.6;
-    this.bloomPass.strength = 0.09 + sunset * 0.16 + night * 0.42;
-    this.bloomPass.threshold = 0.9 - night * 0.3;
+    this.bloomPass.strength = 0.08 + sunset * 0.16 + night * 0.42;
+    this.bloomPass.threshold = 0.91 - night * 0.3;
     this.gradePass.uniforms.uNight.value = night;
     this.gradePass.uniforms.uSunset.value = sunset;
+    this.gradePass.uniforms.uFogCol.value.copy(skyHor);
   }
 
   public updateCamera(dt: number, keys: Set<string>) {

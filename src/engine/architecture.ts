@@ -137,26 +137,25 @@ export function populateCityAndNature(
   const g = state.grid;
   const isR = (x: number, y: number) => inBounds(x, y) && isRoadType(g[y][x].building?.type);
 
-  const OAK_COLS = [0x92ad7a, 0xa2b886, 0x829e6e, 0xadbd84, 0x99ab78];
-  const ACCENT_COLS = [0xd4965d, 0xc98253, 0xd9a8b4, 0xc7a85c];
-  const PINE_COLS = [0x6f9473, 0x5d8265, 0x7a9c7a, 0x53755c];
-  const ROCK_COLS = [0x9c9890, 0x8b8e8c, 0x7d7a74, 0xa8a296];
+  const OAK_COLS = [0xa8c78b, 0xb7d196, 0x96b87d, 0xc2d494, 0xabc286];
+  const ACCENT_COLS = [0xde9e64, 0xd48b5c, 0xe0b0bc, 0xd4b566];
+  const PINE_COLS = [0x88b58b, 0x78a37e, 0x94bd90, 0x6e9976];
+  const ROCK_COLS = [0xa8a39b, 0x989c9a, 0x8a8780, 0xb5afa3];
 
   const addBroadleaf = (px: number, py: number, pz: number, sc: number, seed: number, allowAccent = true) => {
-    push(B.bTreeTrunk, px, py + 0.2 * sc, pz, 0.08 * sc, 0.42 * sc, 0.08 * sc, 0, 0x5c493b);
+    push(B.bTreeTrunk, px, py + 0.2 * sc, pz, 0.08 * sc, 0.42 * sc, 0.08 * sc, 0, 0x635041);
     const isAccent = allowAccent && seed > 0.92;
     const baseCol = isAccent
       ? ACCENT_COLS[Math.floor(seed * 97) % ACCENT_COLS.length]
       : OAK_COLS[Math.floor(seed * 100) % OAK_COLS.length];
-    const hiCol = isAccent ? 0xe0ab72 : 0xb2c98f;
+    const hiCol = isAccent ? 0xebba80 : 0xc0d99c;
     push(B.bBroadleaf, px, py + 0.52 * sc, pz, 0.78 * sc, 0.68 * sc, 0.78 * sc, seed * 6.2, baseCol);
     push(B.bBroadleaf, px + 0.14 * sc, py + 0.62 * sc, pz - 0.1 * sc, 0.54 * sc, 0.48 * sc, 0.54 * sc, seed * 3.1, hiCol);
   };
 
   const addAlpinePine = (px: number, py: number, pz: number, sc: number, seed: number) => {
     const col = PINE_COLS[Math.floor(seed * 83) % PINE_COLS.length];
-    push(B.bTreeTrunk, px, py + 0.22 * sc, pz, 0.075 * sc, 0.44 * sc, 0.075 * sc, 0, 0x4d3c30);
-    // Single multi-tiered feathered conifer spruce crown (4 horizontal bough whorls + 3 crossed spire silhouettes)
+    push(B.bTreeTrunk, px, py + 0.22 * sc, pz, 0.075 * sc, 0.44 * sc, 0.075 * sc, 0, 0x544235);
     push(B.bPine, px, py + 0.78 * sc, pz, 0.88 * sc, 1.32 * sc, 0.88 * sc, seed * 6.28, col);
   };
 
@@ -168,14 +167,14 @@ export function populateCityAndNature(
   };
 
   const addRoofDetails = (wx: number, roofY: number, wz: number, w: number, hash: number, withHelipad = false) => {
-    push(B.bRoofTop, wx, roofY + 0.025, wz, w * 0.94, 0.05, w * 0.94, 0, 0x878e97);
-    push(B.bSolidBox, wx - w * 0.16, roofY + 0.12, wz - w * 0.14, w * 0.32, 0.16, w * 0.28, 0, 0x626973);
-    push(B.bSolidBox, wx + w * 0.18, roofY + 0.09, wz + w * 0.16, w * 0.18, 0.1, w * 0.18, 0, 0xadb4bd);
+    push(B.bRoofTop, wx, roofY + 0.025, wz, w * 0.94, 0.05, w * 0.94, 0, 0x9aa2ac);
+    push(B.bSolidBox, wx - w * 0.16, roofY + 0.12, wz - w * 0.14, w * 0.32, 0.16, w * 0.28, 0, 0x737b85);
+    push(B.bSolidBox, wx + w * 0.18, roofY + 0.09, wz + w * 0.16, w * 0.18, 0.1, w * 0.18, 0, 0xc2c9d1);
     if (withHelipad) {
-      push(B.bCylinder, wx + w * 0.08, roofY + 0.06, wz + w * 0.06, w * 0.56, 0.03, w * 0.56, 0, 0x2d333b);
-      push(B.bBeacon, wx + w * 0.08, roofY + 0.085, wz + w * 0.06, w * 0.26, 0.02, 0.04, 0, 0xdcb448);
+      push(B.bCylinder, wx + w * 0.08, roofY + 0.06, wz + w * 0.06, w * 0.56, 0.03, w * 0.56, 0, 0x363e47);
+      push(B.bBeacon, wx + w * 0.08, roofY + 0.085, wz + w * 0.06, w * 0.26, 0.02, 0.04, 0, 0xe5be52);
     } else if (hash > 0.65) {
-      push(B.bBush, wx + w * 0.16, roofY + 0.1, wz - w * 0.16, 0.2, 0.14, 0.2, hash * 5, 0x4c6b3b);
+      push(B.bBush, wx + w * 0.16, roofY + 0.1, wz - w * 0.16, 0.2, 0.14, 0.2, hash * 5, 0x749956);
     }
   };
 
@@ -192,8 +191,8 @@ export function populateCityAndNature(
         if (t.terrain === 'sand' && t.isCoast) {
           if (t.hash > 0.7) addBoulderCluster(wx + (t.hash - 0.8) * 0.4, wy - 0.02, wz, 0.68 + t.hash * 0.45, t.hash);
           else if (t.hash < 0.28) {
-            push(B.bBush, wx - 0.15, wy + 0.08, wz + 0.1, 0.28, 0.22, 0.28, t.hash * 6, 0x4b6334);
-            push(B.bBush, wx + 0.18, wy + 0.06, wz - 0.12, 0.22, 0.18, 0.22, t.hash * 3, 0x5c703b);
+            push(B.bBush, wx - 0.15, wy + 0.08, wz + 0.1, 0.28, 0.22, 0.28, t.hash * 6, 0x789958);
+            push(B.bBush, wx + 0.18, wy + 0.06, wz - 0.12, 0.22, 0.18, 0.22, t.hash * 3, 0x8aa362);
           }
           continue;
         }
@@ -203,11 +202,11 @@ export function populateCityAndNature(
             const sc = 0.82 + t.hash * 0.56;
             if (isHill || t.hash > 0.84) addAlpinePine(wx, wy, wz, sc, t.hash);
             else addBroadleaf(wx, wy, wz, sc, t.hash, true);
-            if (t.hash > 0.8) push(B.bBush, wx + 0.28, wy + 0.09, wz + 0.24, 0.26, 0.2, 0.26, t.hash * 5, 0x3c522c);
+            if (t.hash > 0.8) push(B.bBush, wx + 0.28, wy + 0.09, wz + 0.24, 0.26, 0.2, 0.26, t.hash * 5, 0x6f9452);
           } else if (isHill && t.hash > 0.68) {
             addBoulderCluster(wx, wy, wz, 0.8 + t.hash * 0.5, t.hash);
           } else if (t.hash > 0.62 && t.hash < 0.72) {
-            const bCol = t.hash > 0.7 ? 0xb5a44c : t.hash > 0.66 ? 0x586d3b : 0x455c32;
+            const bCol = t.hash > 0.7 ? 0xc4b55c : t.hash > 0.66 ? 0x7d9959 : 0x6c8c4f;
             push(B.bBush, wx + (t.hash - 0.67) * 5, wy + 0.06, wz, 0.22, 0.14, 0.22, t.hash * 9, bCol);
           }
         }
@@ -219,9 +218,7 @@ export function populateCityAndNature(
       if (t.onFire) fireCoords.push(new THREE.Vector3(wx, wy + 1.0, wz));
       const bt = b.type;
 
-      // ---- ROADS, ROUNDABOUTS & STAY-CABLE BRIDGES ----
-      // Continuous road surfaces, sloped concrete curbs, approach ramps & guardrails
-      // are built by buildConformingRoadMeshes() for 0.000m step-free transitions!
+      // ---- ROADS, ROUNDABOUTS, TRAFFIC LIGHTS & STAY-CABLE BRIDGES ----
       if (isRoadType(bt)) {
         const isBridge = t.terrain === 'water';
         const ry = elev.roadCenterY[y * GRID + x];
@@ -233,8 +230,8 @@ export function populateCityAndNature(
         const horiz = (nE || nW) && !(nN || nS);
 
         if (bt === 'roundabout') {
-          push(B.bCylinder, wx, ry + 0.05, wz, 0.46, 0.12, 0.46, 0, 0x4b6e3f);
-          push(B.bCylinder, wx, ry + 0.13, wz, 0.24, 0.08, 0.24, 0, 0x3b7a94);
+          push(B.bCylinder, wx, ry + 0.05, wz, 0.46, 0.12, 0.46, 0, 0x688f4c);
+          push(B.bCylinder, wx, ry + 0.13, wz, 0.24, 0.08, 0.24, 0, 0x3b86a3);
           push(B.bBeacon, wx, ry + 0.3, wz, 0.08, 0.24, 0.08, 0, 0xbae6fd);
           addBroadleaf(wx + 0.14, ry + 0.1, wz + 0.12, 0.32, t.hash, true);
         } else if (!isBridge && deg <= 2 && !(deg === 2 && ((nN && nE) || (nE && nS) || (nS && nW) || (nW && nN)))) {
@@ -243,53 +240,65 @@ export function populateCityAndNature(
           }
         }
 
+        // Signature Cities: Skylines 3D Traffic Light Poles at major intersections!
+        if (!isBridge && deg >= 3 && bt !== 'roundabout' && bt !== 'highway') {
+          for (const [ox, oz] of [[0.42, 0.42], [-0.42, -0.42]]) {
+            push(B.bCylinder, wx + ox, ry + 0.24, wz + oz, 0.032, 0.48, 0.032, 0, 0x525d6b);
+            push(B.bSolidBox, wx + ox * 0.62, ry + 0.46, wz + oz, 0.32, 0.028, 0.028, 0, 0x64748b);
+            push(B.bLampBulb, wx + ox * 0.45, ry + 0.44, wz + oz, 0.05, 0.07, 0.04, 0, ox > 0 ? 0x4ade80 : 0xfbbf24);
+          }
+        }
+
         if (isBridge) {
-          // Bridge support piers descending cleanly into riverbed from exact sloped soffit
           if ((x + y) % 2 === 0) {
             const pierH = Math.max(0.5, ry - 0.12 - -0.82);
-            push(B.bCylinder, wx, ry - 0.12 - pierH * 0.5, wz, 0.28, pierH, 0.28, 0, 0x64748b);
+            push(B.bCylinder, wx, ry - 0.12 - pierH * 0.5, wz, 0.28, pierH, 0.28, 0, 0x7a8594);
           }
-          // Stay-cable pylons & diagonal cables anchored to exact deck height ry
+          // Tapered H-Frame Stay-Cable Pylons with Cross-Bracing
           if (bt === 'avenue' && (x + y) % 3 === 0) {
             const pylonBase = ry - 0.04;
             if (horiz) {
-              push(B.bSolidBox, wx, pylonBase + 0.95, wz - 0.44, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
-              push(B.bSolidBox, wx, pylonBase + 0.95, wz + 0.44, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
-              push(B.bBeacon, wx, pylonBase + 1.92, wz, 0.14, 0.09, 0.96, 0, 0x94c5e8);
+              push(B.bSolidBox, wx, pylonBase + 0.96, wz - 0.44, 0.11, 1.92, 0.11, 0, 0xd8dfe8);
+              push(B.bSolidBox, wx, pylonBase + 0.96, wz + 0.44, 0.11, 1.92, 0.11, 0, 0xd8dfe8);
+              push(B.bSolidBox, wx, pylonBase + 1.38, wz, 0.09, 0.07, 0.88, 0, 0xcbd5e1);
+              push(B.bBeacon, wx, pylonBase + 1.92, wz, 0.13, 0.08, 0.96, 0, 0x94c5e8);
               for (const sgn of [-1, 1]) {
-                push(B.bCylinder, wx + sgn * 0.65, pylonBase + 0.85, wz - 0.44, 0.024, 1.9, 0.024, 0, 0xd4dbe4, 0, sgn * 0.64);
-                push(B.bCylinder, wx + sgn * 0.65, pylonBase + 0.85, wz + 0.44, 0.024, 1.9, 0.024, 0, 0xd4dbe4, 0, sgn * 0.64);
+                push(B.bCylinder, wx + sgn * 0.65, pylonBase + 0.85, wz - 0.44, 0.022, 1.9, 0.022, 0, 0xd4dbe4, 0, sgn * 0.64);
+                push(B.bCylinder, wx + sgn * 0.65, pylonBase + 0.85, wz + 0.44, 0.022, 1.9, 0.022, 0, 0xd4dbe4, 0, sgn * 0.64);
               }
             } else {
-              push(B.bSolidBox, wx - 0.44, pylonBase + 0.95, wz, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
-              push(B.bSolidBox, wx + 0.44, pylonBase + 0.95, wz, 0.12, 1.9, 0.12, 0, 0xd8dfe8);
-              push(B.bBeacon, wx, pylonBase + 1.92, wz, 0.96, 0.09, 0.14, 0, 0x94c5e8);
+              push(B.bSolidBox, wx - 0.44, pylonBase + 0.96, wz, 0.11, 1.92, 0.11, 0, 0xd8dfe8);
+              push(B.bSolidBox, wx + 0.44, pylonBase + 0.96, wz, 0.11, 1.92, 0.11, 0, 0xd8dfe8);
+              push(B.bSolidBox, wx, pylonBase + 1.38, wz, 0.88, 0.07, 0.09, 0, 0xcbd5e1);
+              push(B.bBeacon, wx, pylonBase + 1.92, wz, 0.96, 0.08, 0.13, 0, 0x94c5e8);
               for (const sgn of [-1, 1]) {
-                push(B.bCylinder, wx - 0.44, pylonBase + 0.85, wz + sgn * 0.65, 0.024, 1.9, 0.024, 0, 0xd4dbe4, -sgn * 0.64, 0);
-                push(B.bCylinder, wx + 0.44, pylonBase + 0.85, wz + sgn * 0.65, 0.024, 1.9, 0.024, 0, 0xd4dbe4, -sgn * 0.64, 0);
+                push(B.bCylinder, wx - 0.44, pylonBase + 0.85, wz + sgn * 0.65, 0.022, 1.9, 0.022, 0, 0xd4dbe4, -sgn * 0.64, 0);
+                push(B.bCylinder, wx + 0.44, pylonBase + 0.85, wz + sgn * 0.65, 0.022, 1.9, 0.022, 0, 0xd4dbe4, -sgn * 0.64, 0);
               }
             }
           }
-        } else if (bt === 'avenue' && (x + y) % 3 === 0 && deg <= 2) {
-          push(B.bCylinder, wx + 0.43, ry + 0.34, wz + 0.43, 0.04, 0.68, 0.04, 0, 0x475569);
-          push(B.bLampBulb, wx + 0.43, ry + 0.7, wz + 0.43, 0.12, 0.09, 0.12, 0, 0xfef08a);
+        } else if ((bt === 'avenue' || bt === 'road') && (x + y) % 3 === 0 && deg <= 2) {
+          push(B.bCylinder, wx + 0.43, ry + 0.32, wz + 0.43, 0.036, 0.64, 0.036, 0, 0x525d6b);
+          push(B.bLampBulb, wx + 0.43, ry + 0.65, wz + 0.43, 0.11, 0.08, 0.11, 0, 0xfef08a);
+          if (bt === 'avenue') {
+            push(B.bCylinder, wx - 0.43, ry + 0.32, wz - 0.43, 0.036, 0.64, 0.036, 0, 0x525d6b);
+            push(B.bLampBulb, wx - 0.43, ry + 0.65, wz - 0.43, 0.11, 0.08, 0.11, 0, 0xfef08a);
+          }
         }
         continue;
       }
 
       const rawLv = Math.min(5, Math.max(1, b.level || 1));
-      // Historical Building Lock keeps classic visual silhouette while still earning Lv.5 tax/pop!
       const lv = b.historical ? Math.min(2, rawLv) : 1 + (rawLv - 1) * 0.65;
       const dim = b.abandoned ? 0x64748b : 0xffffff;
-      // Dramatic skyline height hierarchy (hero towers vs varied mid-rises!)
       const heroBoost = t.hash > 0.84 ? 1.42 : t.hash < 0.25 ? 0.76 : 0.95 + t.hash * 0.25;
       const style = Math.floor(t.hash * 6);
       const rot90 = ((x * 3 + y * 5) % 4) * (Math.PI / 2);
 
-      // Deep-grounded Concrete Plaza / Courtyard Foundation Plinth (never floats on slopes!)
+      // Cohesive Cities: Skylines Sunlit Concrete Block Apron (flush with road sidewalks!)
       if (bt !== 'wind' && bt !== 'power_line' && bt !== 'park') {
-        const padCol = bt === 'ind' ? 0x8f98a4 : bt === 'res_low' ? 0xc2ccb6 : 0xcbd2da;
-        push(B.bPlaza, wx, wy - 0.065, wz, 0.96, 0.22, 0.96, 0, padCol);
+        const padCol = bt === 'ind' ? 0xa3acb6 : bt === 'res_low' ? 0xced6c2 : 0xd5dce4;
+        push(B.bPlaza, wx, wy - 0.065, wz, 0.98, 0.22, 0.98, 0, padCol);
       }
 
       // ---- 1. SUBURBAN VILLAS & HOMES (4 Diverse Styles!) ----
@@ -359,10 +368,12 @@ export function populateCityAndNature(
         push(B.bSolidBox, wx, wy + 0.24, wz + 0.4, 0.72, 0.07, 0.14, 0, awnCol);
         push(B.bBeacon, wx, wy + 0.05 + h + 0.1, wz + 0.32, 0.62, 0.09, 0.07, 0, sub === 0 ? 0xfacc15 : sub === 1 ? 0x38bdf8 : 0xf472b6);
 
-      // ---- 4. HIGH-DENSITY CBD SKYSCRAPERS (6 Iconic Diverse Archetypes!) ----
+      // ---- 4. HIGH-DENSITY CBD SKYSCRAPERS (6 Iconic Diverse Archetypes with 3D Podiums & Cornices!) ----
       } else if (bt === 'com_high') {
         const h = (1.45 + lv * 1.12) * heroBoost;
         push(B.bCivic, wx, wy + 0.22, wz, 0.88, 0.36, 0.88, 0, dim);
+        // 3D Protruding Podium Cornice Collar (breaks up boxy vertical silhouette!)
+        push(B.bSolidBox, wx, wy + 0.40, wz, 0.92, 0.045, 0.92, 0, 0xd8dfe6);
 
         if (style === 0) {
           // Archetype 0: Tapering Modern Glass Spire (Lotte / Shard Silhouette!)
@@ -372,8 +383,9 @@ export function populateCityAndNature(
             push(B.bCylinder, wx, wy + 0.38 + h * 1.13 + 0.45, wz, 0.04, 0.9, 0.04, 0, 0xf8fafc);
           }
         } else if (style === 1) {
-          // Archetype 1: Champagne-Gold Luxury Corporate Setback Tower + Helipad!
+          // Archetype 1: Champagne-Gold Luxury Corporate Setback Tower + 3D Floor Band + Helipad!
           push(B.bGoldGlass, wx, wy + 0.38 + h * 0.5, wz, 0.78, h, 0.78, 0, dim);
+          push(B.bSolidBox, wx, wy + 0.38 + h * 0.52, wz, 0.84, 0.045, 0.84, 0, 0xe5dec9);
           push(B.bGoldGlass, wx, wy + 0.38 + h + 0.32, wz, 0.56, 0.64, 0.56, 0, 0xfef3c7);
           addRoofDetails(wx, wy + 0.38 + h + 0.64, wz, 0.54, t.hash, lv >= 3);
           if (!b.abandoned) push(B.bBeacon, wx, wy + 0.38 + h + 0.66, wz, 0.57, 0.06, 0.57, 0, 0xfbbf24);
@@ -386,8 +398,9 @@ export function populateCityAndNature(
             push(B.bCylinder, wx, wy + 0.38 + h + 0.92, wz, 0.04, 0.78, 0.04, 0, 0xe2e8f0);
           }
         } else if (style === 3) {
-          // Archetype 3: Classic Art-Deco Limestone Empire Tower with Illuminated Crown!
+          // Archetype 3: Classic Art-Deco Limestone Empire Tower with Stepped Cornices & Crown!
           push(B.bArtDeco, wx, wy + 0.38 + h * 0.48, wz, 0.78, h * 0.96, 0.78, 0, dim);
+          push(B.bSolidBox, wx, wy + 0.38 + h * 0.96, wz, 0.82, 0.05, 0.82, 0, 0xede7db);
           push(B.bArtDeco, wx, wy + 0.38 + h * 0.96 + 0.34, wz, 0.54, 0.68, 0.54, 0, 0xfef3c7);
           push(B.bArtDeco, wx, wy + 0.38 + h * 0.96 + 0.82, wz, 0.32, 0.36, 0.32, 0, 0xf8fafc);
           if (!b.abandoned) {
@@ -400,8 +413,10 @@ export function populateCityAndNature(
           push(B.bModernWhite, wx + 0.19, wy + 0.38 + h * 0.43, wz, 0.36, h * 0.86, 0.68, 0, dim);
           push(B.bBeacon, wx, wy + 0.38 + h * 0.58, wz, 0.48, 0.12, 0.26, 0, 0x7dd3fc);
         } else {
-          // Archetype 5: White Modernist Luxury Mixed-Use Tower + Rooftop Sky Garden!
+          // Archetype 5: White Modernist Luxury Mixed-Use Tower + 3D Balcony Slabs + Rooftop Sky Garden!
           push(B.bModernWhite, wx, wy + 0.38 + h * 0.5, wz, 0.76, h, 0.72, rot90, dim);
+          push(B.bSolidBox, wx, wy + 0.38 + h * 0.36, wz, 0.82, 0.04, 0.78, rot90, 0xebeff4);
+          push(B.bSolidBox, wx, wy + 0.38 + h * 0.70, wz, 0.82, 0.04, 0.78, rot90, 0xebeff4);
           addRoofDetails(wx, wy + 0.38 + h, wz, 0.72, 0.8, false);
           if (!b.abandoned) push(B.bBeacon, wx, wy + 0.38 + h + 0.07, wz, 0.74, 0.05, 0.7, rot90, 0x38bdf8);
         }
@@ -411,16 +426,15 @@ export function populateCityAndNature(
         const sub = style % 3;
         const h = (1.35 + lv * 1.02) * heroBoost;
         push(B.bCivic, wx, wy + 0.2, wz, 0.86, 0.32, 0.86, 0, dim);
+        push(B.bSolidBox, wx, wy + 0.36, wz, 0.90, 0.04, 0.90, 0, 0xd8dfe6);
         if (sub === 0) {
           push(B.bOffice, wx, wy + 0.34 + h / 2, wz, 0.74, h, 0.74, 0, dim);
           push(B.bOffice, wx, wy + 0.34 + h + 0.24, wz, 0.48, 0.48, 0.48, Math.PI / 4, 0xa5f3fc);
           if (!b.abandoned) push(B.bBeacon, wx, wy + 0.34 + h + 0.5, wz, 0.48, 0.06, 0.48, Math.PI / 4, 0x22d3ee);
         } else if (sub === 1) {
-          // Champagne-Gold / Diamond Corporate Tower
           push(B.bGoldGlass, wx, wy + 0.34 + h / 2, wz, 0.72, h, 0.72, Math.PI / 4, dim);
           addRoofDetails(wx, wy + 0.34 + h, wz, 0.6, t.hash, lv >= 3);
         } else {
-          // Modern White Cantilevered Tech HQ with Cyan Crown Fins
           push(B.bModernWhite, wx, wy + 0.34 + h * 0.48, wz, 0.78, h * 0.96, 0.62, rot90, dim);
           push(B.bOffice, wx, wy + 0.34 + h * 0.72, wz, 0.84, h * 0.32, 0.68, rot90, dim);
           if (!b.abandoned) push(B.bBeacon, wx, wy + 0.34 + h * 0.96 + 0.05, wz, 0.76, 0.06, 0.6, rot90, 0x22d3ee);
@@ -431,23 +445,19 @@ export function populateCityAndNature(
         const sub = style % 3;
         const h = 0.46 + lv * 0.16;
         if (sub === 0) {
-          // Manufacturing Plant + Smokestack + Storage Silo + Cargo Container
           push(B.bInd, wx - 0.06, wy + 0.05 + h / 2, wz - 0.04, 0.72, h, 0.68, 0, dim);
-          push(B.bCylinder, wx + 0.28, wy + 0.05 + h + 0.36, wz - 0.22, 0.14, 0.78, 0.14, 0, 0x475569);
-          push(B.bCylinder, wx + 0.26, wy + 0.05 + 0.28, wz + 0.22, 0.26, 0.52, 0.26, 0, 0xd6d3d1);
-          push(B.bSolidBox, wx - 0.18, wy + 0.14, wz + 0.35, 0.36, 0.18, 0.16, 0, 0xdc2626);
+          push(B.bCylinder, wx + 0.28, wy + 0.05 + h + 0.36, wz - 0.22, 0.14, 0.78, 0.14, 0, 0x5c6672);
+          push(B.bCylinder, wx + 0.26, wy + 0.05 + 0.28, wz + 0.22, 0.26, 0.52, 0.26, 0, 0xd8d5d0);
+          push(B.bSolidBox, wx - 0.18, wy + 0.14, wz + 0.35, 0.36, 0.18, 0.16, 0, 0x9e3b33);
         } else if (sub === 1) {
-          // Logistics Container Yard with Stacked Colorful Containers & Yellow Gantry Frame!
           push(B.bInd, wx - 0.22, wy + 0.05 + h * 0.45, wz - 0.18, 0.44, h * 0.9, 0.48, 0, dim);
-          push(B.bSolidBox, wx + 0.18, wy + 0.14, wz - 0.16, 0.34, 0.18, 0.16, 0, 0x2563eb);
-          push(B.bSolidBox, wx + 0.18, wy + 0.32, wz - 0.16, 0.34, 0.18, 0.16, 0, 0xf59e0b);
-          push(B.bSolidBox, wx + 0.12, wy + 0.14, wz + 0.22, 0.38, 0.18, 0.16, 0, 0x16a34a);
-          // Yellow gantry crane arch
-          push(B.bSolidBox, wx + 0.18, wy + 0.56, wz + 0.04, 0.06, 0.06, 0.78, 0, 0xfacc15);
-          push(B.bSolidBox, wx + 0.18, wy + 0.3, wz - 0.34, 0.06, 0.52, 0.06, 0, 0xfacc15);
-          push(B.bSolidBox, wx + 0.18, wy + 0.3, wz + 0.4, 0.06, 0.52, 0.06, 0, 0xfacc15);
+          push(B.bSolidBox, wx + 0.18, wy + 0.14, wz - 0.16, 0.34, 0.18, 0.16, 0, 0x3b6696);
+          push(B.bSolidBox, wx + 0.18, wy + 0.32, wz - 0.16, 0.34, 0.18, 0.16, 0, 0xb87638);
+          push(B.bSolidBox, wx + 0.12, wy + 0.14, wz + 0.22, 0.38, 0.18, 0.16, 0, 0x3d7349);
+          push(B.bSolidBox, wx + 0.18, wy + 0.56, wz + 0.04, 0.06, 0.06, 0.78, 0, 0xdca834);
+          push(B.bSolidBox, wx + 0.18, wy + 0.3, wz - 0.34, 0.06, 0.52, 0.06, 0, 0xdca834);
+          push(B.bSolidBox, wx + 0.18, wy + 0.3, wz + 0.4, 0.06, 0.52, 0.06, 0, 0xdca834);
         } else {
-          // Modern Refinery / Grain Silos with Overhead Silver Pipe
           push(B.bInd, wx - 0.14, wy + 0.05 + h * 0.4, wz, 0.46, h * 0.8, 0.74, 0, dim);
           push(B.bCylinder, wx + 0.22, wy + 0.05 + 0.42, wz - 0.2, 0.3, 0.82, 0.3, 0, 0xe2e8f0);
           push(B.bCylinder, wx + 0.22, wy + 0.05 + 0.38, wz + 0.2, 0.3, 0.74, 0.3, 0, 0xcbd5e1);
@@ -456,11 +466,11 @@ export function populateCityAndNature(
 
       // ---- 7. DETAILED PARKS, CIVIC FACILITIES & LANDMARKS ----
       } else if (bt === 'park') {
-        push(B.bSolidBox, wx, wy + 0.03, wz, 0.96, 0.06, 0.96, 0, 0x3b8c3e);
+        push(B.bSolidBox, wx, wy + 0.03, wz, 0.96, 0.06, 0.96, 0, 0x678a49);
         push(B.bPlaza, wx, wy + 0.065, wz, 0.52, 0.03, 0.52, Math.PI / 4, 0xe2e8f0);
-        push(B.bCylinder, wx, wy + 0.11, wz, 0.32, 0.08, 0.32, 0, 0x38bdf8);
+        push(B.bCylinder, wx, wy + 0.11, wz, 0.32, 0.08, 0.32, 0, 0x388eb0);
         push(B.bBeacon, wx, wy + 0.24, wz, 0.07, 0.18, 0.07, 0, 0xbae6fd);
-        addBroadleaf(wx - 0.3, wy + 0.04, wz - 0.3, 0.58, 0.95, true); // Cherry blossom / maple park accent!
+        addBroadleaf(wx - 0.3, wy + 0.04, wz - 0.3, 0.58, 0.95, true);
         addBroadleaf(wx + 0.3, wy + 0.04, wz - 0.28, 0.54, t.hash + 0.3, false);
         addAlpinePine(wx - 0.28, wy + 0.04, wz + 0.3, 0.55, t.hash + 0.5);
         addBroadleaf(wx + 0.28, wy + 0.04, wz + 0.28, 0.52, t.hash + 0.7, true);
