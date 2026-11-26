@@ -5,3 +5,22 @@ dist-artifact/
 .vercel/
 .DS_Store
 *.log
+
+# Unity 6 generated artifacts & caches
+unity/Library/
+unity/Temp/
+unity/Obj/
+unity/Build/
+unity/Builds/
+unity/Logs/
+unity/UserSettings/
+unity/MemoryCaptures/
+unity/Recordings/
+unity/*.csproj
+unity/*.sln
+unity/*.userprefs
+unity/*.pidb
+unity/*.booproj
+unity/.vs/
+unity/Tests.DotNet/bin/
+unity/Tests.DotNet/obj/
