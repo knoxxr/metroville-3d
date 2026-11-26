@@ -227,6 +227,37 @@ namespace Metroville.Core
             return false;
         }
 
+        public BuildingInstance FindBuildingAt(Vec3 worldPos, float radius = 16f)
+        {
+            BuildingInstance best = null;
+            float bestDist = radius;
+            for (int i = 0; i < Buildings.Count; i++)
+            {
+                float d = Vec2.Distance(Buildings[i].Position.XZ, worldPos.XZ);
+                if (d <= bestDist)
+                {
+                    bestDist = d;
+                    best = Buildings[i];
+                }
+            }
+            return best;
+        }
+
+        public bool BulldozeBuildingById(int buildingId)
+        {
+            for (int i = Buildings.Count - 1; i >= 0; i--)
+            {
+                if (Buildings[i].Id == buildingId)
+                {
+                    Buildings.RemoveAt(i);
+                    RunSimulationTick();
+                    OnWorldChanged?.Invoke();
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Advances continuous vehicle motion, day-night clock, and periodic economy/supply-chain ticks.
         /// </summary>

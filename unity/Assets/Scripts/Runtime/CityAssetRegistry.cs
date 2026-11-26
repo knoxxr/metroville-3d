@@ -29,6 +29,12 @@ namespace Metroville.Runtime
         public List<GameObject> TreePrefabs = new List<GameObject>();
         public List<GameObject> VehiclePrefabs = new List<GameObject>();
 
+        [Header("Photo-Scanned PBR Terrain Layers (Auto-linked by Poly Haven CC0 Pipeline)")]
+        public TerrainLayer MeadowGrassLayer;
+        public TerrainLayer HighlandGrassLayer;
+        public TerrainLayer CliffRockLayer;
+        public TerrainLayer CoastalSandLayer;
+
         [Header("Core URP Materials (Auto-assigned by Metroville Editor Setup)")]
         public Material SkyboxMaterial;
         public Material WaterMaterial;

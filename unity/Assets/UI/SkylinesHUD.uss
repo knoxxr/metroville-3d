@@ -1,0 +1,541 @@
+/* Metroville Unity 6 — Cities: Skylines Translucent Dark-Glass UI Toolkit Stylesheet */
+
+.hud-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 14px 18px 16px 18px;
+}
+
+.hidden {
+    display: none;
+}
+
+.glass-panel {
+    background-color: rgba(14, 22, 36, 0.90);
+    border-width: 1px;
+    border-color: rgba(125, 211, 252, 0.24);
+    border-radius: 14px;
+}
+
+/* TOP BAR */
+.top-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.infoview-cluster {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.infoview-fab {
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    background-color: #0284c7;
+    border-width: 2px;
+    border-color: rgba(224, 242, 254, 0.75);
+    color: #ffffff;
+    font-size: 20px;
+    -unity-font-style: bold;
+    margin-right: 10px;
+}
+
+.infoview-fab:hover {
+    background-color: #38bdf8;
+}
+
+.infoview-drawer {
+    padding: 10px 12px;
+    width: 248px;
+}
+
+.panel-title {
+    color: #bae6fd;
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+.infoview-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.iv-btn {
+    width: 108px;
+    height: 30px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    background-color: rgba(30, 41, 59, 0.92);
+    border-width: 1px;
+    border-color: rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.iv-btn:hover {
+    background-color: rgba(56, 189, 248, 0.28);
+}
+
+.iv-btn.active {
+    background-color: #0284c7;
+    border-color: #7dd3fc;
+    color: #ffffff;
+}
+
+.chirper-pill {
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 16px 6px 8px;
+    border-radius: 22px;
+    height: 40px;
+}
+
+.chirper-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background-color: #0ea5e9;
+    color: #ffffff;
+    font-size: 15px;
+    -unity-text-align: middle-center;
+    margin-right: 10px;
+}
+
+.chirper-text {
+    color: #f1f5f9;
+    font-size: 13px;
+    -unity-font-style: bold;
+}
+
+.top-right-cluster {
+    flex-direction: row;
+    align-items: center;
+}
+
+.top-chip-btn {
+    height: 36px;
+    padding: 0 12px;
+    margin-left: 8px;
+    border-radius: 10px;
+    background-color: rgba(15, 23, 42, 0.88);
+    border-width: 1px;
+    border-color: rgba(125, 211, 252, 0.30);
+    color: #e2e8f0;
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.top-chip-btn:hover {
+    background-color: rgba(2, 132, 199, 0.82);
+    color: #ffffff;
+}
+
+/* MIDDLE LAYER (Modals & Inspector) */
+.middle-layer {
+    flex-grow: 1;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.economy-modal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    width: 680px;
+    padding: 16px 18px;
+}
+
+.modal-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.modal-title {
+    color: #f8fafc;
+    font-size: 15px;
+    -unity-font-style: bold;
+}
+
+.close-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    background-color: rgba(51, 65, 85, 0.85);
+    border-width: 0;
+    color: #cbd5e1;
+    font-size: 12px;
+}
+
+.close-btn:hover {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+.econ-row {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.econ-card {
+    width: 48.5%;
+    padding: 12px;
+    border-radius: 10px;
+    background-color: rgba(30, 41, 59, 0.65);
+}
+
+.section-label {
+    color: #7dd3fc;
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+}
+
+.mt-4 { margin-top: 4px; }
+.mt-8 { margin-top: 10px; }
+.mt-10 { margin-top: 14px; }
+
+.stat-pos { color: #4ade80; font-size: 13px; -unity-font-style: bold; }
+.stat-neg { color: #fb7185; font-size: 13px; }
+.stat-strong { color: #f8fafc; font-size: 14px; -unity-font-style: bold; margin-top: 2px; }
+.stat-sub { color: #e2e8f0; font-size: 12px; }
+.stat-muted { color: #94a3b8; font-size: 11px; margin-top: 4px; }
+
+.tax-slider {
+    color: #e2e8f0;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.progress-track {
+    height: 12px;
+    border-radius: 6px;
+    background-color: rgba(15, 23, 42, 0.9);
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 85%;
+    border-radius: 6px;
+}
+
+.fill-cyan { background-color: #38bdf8; }
+
+.stacked-bar {
+    flex-direction: row;
+    height: 14px;
+    border-radius: 7px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.edu-seg { height: 100%; }
+.seg-unedu { background-color: #f87171; }
+.seg-edu { background-color: #fbbf24; }
+.seg-well { background-color: #34d399; }
+.seg-high { background-color: #60a5fa; }
+
+/* Building Inspector */
+.inspector-card {
+    width: 300px;
+    padding: 14px;
+}
+
+.insp-level {
+    color: #facc15;
+    font-size: 14px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+}
+
+.insp-badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    margin-bottom: 10px;
+}
+
+.status-pill {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-right: 6px;
+    margin-bottom: 4px;
+}
+
+.status-pill.ok {
+    background-color: rgba(34, 197, 94, 0.22);
+    color: #86efac;
+}
+
+.status-pill.warn {
+    background-color: rgba(239, 68, 68, 0.28);
+    color: #fca5a5;
+}
+
+.insp-actions {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.action-btn {
+    flex-grow: 1;
+    height: 32px;
+    margin-right: 6px;
+    border-radius: 8px;
+    background-color: #1e293b;
+    border-width: 1px;
+    border-color: rgba(125, 211, 252, 0.35);
+    color: #f8fafc;
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.action-btn:hover { background-color: #0284c7; }
+.action-btn.danger { background-color: rgba(153, 27, 27, 0.85); border-color: #f87171; margin-right: 0; }
+.action-btn.danger:hover { background-color: #dc2626; }
+
+/* BOTTOM DOCK & SUB-TOOL TRAY */
+.bottom-dock {
+    align-items: center;
+    width: 100%;
+}
+
+.subtool-tray {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    min-height: 64px;
+}
+
+.subtool-modes {
+    flex-direction: column;
+    margin-right: 12px;
+    padding-right: 12px;
+    border-right-width: 1px;
+    border-right-color: rgba(148, 163, 184, 0.25);
+}
+
+.mode-btn {
+    height: 24px;
+    padding: 0 10px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background-color: #1e293b;
+    border-width: 1px;
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #cbd5e1;
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.mode-btn.active {
+    background-color: #0284c7;
+    border-color: #7dd3fc;
+    color: #ffffff;
+}
+
+.subtool-items {
+    flex-direction: row;
+    align-items: center;
+}
+
+.subtool-btn {
+    min-width: 88px;
+    height: 50px;
+    margin-right: 8px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    background-color: rgba(30, 41, 59, 0.92);
+    border-width: 1px;
+    border-color: rgba(148, 163, 184, 0.28);
+    color: #f1f5f9;
+    font-size: 11px;
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.subtool-btn:hover { background-color: rgba(14, 165, 233, 0.35); }
+.subtool-btn.active {
+    background-color: #0284c7;
+    border-color: #7dd3fc;
+    color: #ffffff;
+}
+
+.tool-hint {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-left: 8px;
+    max-width: 240px;
+    white-space: normal;
+}
+
+/* MAIN DECK */
+.main-deck {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 16px;
+    height: 74px;
+}
+
+.deck-section {
+    flex-direction: row;
+    align-items: center;
+    padding-right: 14px;
+    margin-right: 14px;
+    border-right-width: 1px;
+    border-right-color: rgba(148, 163, 184, 0.22);
+}
+
+.speed-cluster {
+    flex-direction: column;
+    align-items: center;
+}
+
+.speed-row {
+    flex-direction: row;
+}
+
+.spd-btn {
+    width: 30px;
+    height: 26px;
+    margin-right: 4px;
+    border-radius: 6px;
+    background-color: #1e293b;
+    border-width: 1px;
+    border-color: rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.spd-btn.active {
+    background-color: #0284c7;
+    border-color: #7dd3fc;
+    color: #ffffff;
+}
+
+.clock-label {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+.kpi-cluster {
+    flex-direction: row;
+}
+
+.kpi-col {
+    flex-direction: column;
+    margin-right: 16px;
+}
+
+.city-name {
+    color: #f8fafc;
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.treasury-label {
+    color: #facc15;
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-top: 2px;
+}
+
+.pop-label {
+    color: #38bdf8;
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.mini-kpi {
+    color: #cbd5e1;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+/* RCI DEMAND BARS */
+.rci-box {
+    flex-direction: row;
+    align-items: flex-end;
+    height: 52px;
+}
+
+.rci-bar-wrap {
+    flex-direction: column;
+    align-items: center;
+    margin-right: 6px;
+}
+
+.rci-track {
+    width: 11px;
+    height: 36px;
+    border-radius: 4px;
+    background-color: rgba(15, 23, 42, 0.95);
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.rci-fill { width: 100%; height: 60%; border-radius: 3px; }
+.rci-green { background-color: #22c55e; }
+.rci-blue { background-color: #3b82f6; }
+.rci-amber { background-color: #f59e0b; }
+
+.rci-lbl {
+    color: #94a3b8;
+    font-size: 10px;
+    -unity-font-style: bold;
+    margin-top: 2px;
+}
+
+/* CATEGORY TABS */
+.category-tabs {
+    border-right-width: 0;
+    margin-right: 0;
+    padding-right: 0;
+}
+
+.cat-btn {
+    width: 58px;
+    height: 54px;
+    margin-left: 6px;
+    border-radius: 12px;
+    background-color: rgba(30, 41, 59, 0.92);
+    border-width: 1px;
+    border-color: rgba(148, 163, 184, 0.28);
+    color: #e2e8f0;
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.cat-btn:hover { background-color: rgba(14, 165, 233, 0.40); color: #ffffff; }
+.cat-btn.active {
+    background-color: #0284c7;
+    border-color: #7dd3fc;
+    color: #ffffff;
+}
+
+.cat-btn.danger-tab.active {
+    background-color: #dc2626;
+    border-color: #fca5a5;
+}

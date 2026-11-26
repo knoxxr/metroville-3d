@@ -15,15 +15,24 @@ namespace Metroville.Runtime
         public CityWorldRenderer WorldRenderer;
         public LightingAtmosphereController Lighting;
         public RoadDrawingController Drawer;
+        public SkylinesHUDController HUD;
 
         public float SimSpeedMultiplier = 1f;
         public CitySimulation Simulation { get; private set; }
+        public InfoViewId ActiveInfoView { get; private set; } = InfoViewId.None;
 
         private bool _dirtyWorld;
         private GUIStyle _panelStyle;
         private GUIStyle _btnStyle;
         private GUIStyle _activeBtnStyle;
         private GUIStyle _labelStyle;
+
+        public void SetInfoView(InfoViewId view)
+        {
+            ActiveInfoView = view;
+            Shader.SetGlobalInt("_MetrovilleInfoView", (int)view);
+            Debug.Log($"[Metroville] InfoView 전환: {view}");
+        }
 
         private void Start()
         {
@@ -32,6 +41,7 @@ namespace Metroville.Runtime
 
             if (TerrainBuilder != null)
             {
+                TerrainBuilder.Assets = Assets;
                 TerrainBuilder.BuildOrRebuildTerrain();
             }
 
@@ -79,6 +89,8 @@ namespace Metroville.Runtime
 
         private void OnGUI()
         {
+            // Automatically yields to the full Unity 6 UI Toolkit HUD whenever mounted!
+            if (HUD != null && HUD.isActiveAndEnabled) return;
             if (Simulation == null) return;
             InitGuiStyles();
 

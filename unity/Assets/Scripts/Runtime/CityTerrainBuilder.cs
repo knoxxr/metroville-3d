@@ -9,6 +9,9 @@ namespace Metroville.Runtime
     /// </summary>
     public sealed class CityTerrainBuilder : MonoBehaviour
     {
+        [Header("Shared Asset Registry (Pulls Poly Haven PBR TerrainLayers automatically)")]
+        public CityAssetRegistry Assets;
+
         [Header("Terrain Dimensions")]
         public float TerrainHeightScale = 140f;
         public int HeightmapResolution = 513;
@@ -93,6 +96,13 @@ namespace Metroville.Runtime
 
         private void EnsureDefaultLayers()
         {
+            if (Assets != null)
+            {
+                if (MeadowGrassLayer == null && Assets.MeadowGrassLayer != null) MeadowGrassLayer = Assets.MeadowGrassLayer;
+                if (HighlandGrassLayer == null && Assets.HighlandGrassLayer != null) HighlandGrassLayer = Assets.HighlandGrassLayer;
+                if (CliffRockLayer == null && Assets.CliffRockLayer != null) CliffRockLayer = Assets.CliffRockLayer;
+                if (CoastalSandLayer == null && Assets.CoastalSandLayer != null) CoastalSandLayer = Assets.CoastalSandLayer;
+            }
             if (MeadowGrassLayer == null)
                 MeadowGrassLayer = CreateProceduralLayer("TemperateMeadow", new Color(0.45f, 0.58f, 0.30f), new Color(0.37f, 0.49f, 0.25f), 26f, 0.08f);
             if (HighlandGrassLayer == null)

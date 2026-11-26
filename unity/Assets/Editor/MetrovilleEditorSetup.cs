@@ -218,9 +218,10 @@ namespace Metroville.Editor
             vol.isGlobal = true;
             vol.sharedProfile = volumeProfile;
 
-            // 4. Native Unity Terrain
+            // 4. Native Unity Terrain (wired to CityAssetRegistry for Poly Haven CC0 PBR TerrainLayers!)
             GameObject terrainObj = new GameObject("ValleyTerrain");
             CityTerrainBuilder terrainBuilder = terrainObj.AddComponent<CityTerrainBuilder>();
+            terrainBuilder.Assets = registry;
 
             // 5. Full-Valley URP Depth-Refracting Water Plane at Y = 14.0m
             GameObject waterObj = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -238,12 +239,26 @@ namespace Metroville.Editor
             LightingAtmosphereController lighting = mgrObj.AddComponent<LightingAtmosphereController>();
             RoadDrawingController drawer = mgrObj.AddComponent<RoadDrawingController>();
 
+            // 7. Full Unity 6 UI Toolkit Cities: Skylines HUD (UXML + USS + PanelSettings)
+            GameObject hudObj = new GameObject("SkylinesHUD");
+            var uiDoc = hudObj.AddComponent<UnityEngine.UIElements.UIDocument>();
+            var panelSettings = CreateOrLoadPanelSettings();
+            var uxml = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.VisualTreeAsset>("Assets/UI/SkylinesHUD.uxml");
+            uiDoc.panelSettings = panelSettings;
+            uiDoc.visualTreeAsset = uxml;
+            SkylinesHUDController hudCtrl = hudObj.AddComponent<SkylinesHUDController>();
+
+            hudCtrl.Bootstrap = bootstrap;
+            hudCtrl.Drawer = drawer;
+            hudCtrl.Lighting = lighting;
+
             roadBuilder.Assets = registry;
             worldRenderer.Assets = registry;
             lighting.Assets = registry;
             lighting.SunLight = sun;
             drawer.Bootstrap = bootstrap;
             drawer.MainCamera = cam;
+            drawer.HUD = hudCtrl;
 
             bootstrap.Assets = registry;
             bootstrap.TerrainBuilder = terrainBuilder;
@@ -251,12 +266,31 @@ namespace Metroville.Editor
             bootstrap.WorldRenderer = worldRenderer;
             bootstrap.Lighting = lighting;
             bootstrap.Drawer = drawer;
+            bootstrap.HUD = hudCtrl;
+
+            // Ensure CC0 external model drop folders are ready in Project window
+            MetrovilleCC0AssetPipeline.CreateRecommendedModelFolders();
 
             RenderSettings.skybox = registry.SkyboxMaterial;
 
             string scenePath = $"{ScenesDir}/MainCity.unity";
             EditorSceneManager.SaveScene(scene, scenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
+        }
+
+        private static UnityEngine.UIElements.PanelSettings CreateOrLoadPanelSettings()
+        {
+            const string path = "Assets/Settings/MetrovillePanelSettings.asset";
+            var ps = AssetDatabase.LoadAssetAtPath<UnityEngine.UIElements.PanelSettings>(path);
+            if (ps == null)
+            {
+                ps = ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>();
+                ps.scaleMode = UnityEngine.UIElements.PanelScaleMode.ScaleWithScreenSize;
+                ps.referenceResolution = new Vector2Int(1920, 1080);
+                ps.match = 0.5f;
+                AssetDatabase.CreateAsset(ps, path);
+            }
+            return ps;
         }
 
         private static Material CreateOrLoadMat(string name, Shader shader, System.Action<Material> configure)

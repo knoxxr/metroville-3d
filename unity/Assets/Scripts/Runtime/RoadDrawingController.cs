@@ -11,6 +11,7 @@ namespace Metroville.Runtime
     {
         public CityGameBootstrap Bootstrap;
         public Camera MainCamera;
+        public SkylinesHUDController HUD;
 
         public ToolMode ActiveTool = ToolMode.Inspect;
         public RoadType SelectedRoadType = RoadType.FourLaneAvenue;
@@ -50,8 +51,8 @@ namespace Metroville.Runtime
                 return;
             }
 
-            // Don't raycast through bottom HUD bar
-            if (Input.mousePosition.y < 105f) return;
+            // Don't raycast through bottom HUD bar or top bar
+            if (Input.mousePosition.y < 140f || Input.mousePosition.y > Screen.height - 64f) return;
 
             if (!TryRaycastTerrain(out Vector3 hitWorld)) return;
 
@@ -84,6 +85,11 @@ namespace Metroville.Runtime
             else
             {
                 _previewLine.positionCount = 0;
+                if (Input.GetMouseButtonDown(0) && HUD != null)
+                {
+                    BuildingInstance picked = Bootstrap.Simulation.FindBuildingAt(new Vec3(hitWorld.x, hitWorld.y, hitWorld.z), 18f);
+                    HUD.ShowBuildingInspector(picked);
+                }
             }
         }
 

@@ -1,0 +1,170 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="SkylinesHUD.uss" />
+
+    <ui:VisualElement name="hud-root" class="hud-root" picking-mode="Ignore">
+
+        <!-- TOP BAR: InfoViews (Left) | Chirper Live Ticker (Center) | Quick Controls (Right) -->
+        <ui:VisualElement name="top-bar" class="top-bar" picking-mode="Ignore">
+            <ui:VisualElement name="infoview-cluster" class="infoview-cluster" picking-mode="Ignore">
+                <ui:Button name="btn-infoview-toggle" text="i" class="infoview-fab" />
+                <ui:VisualElement name="infoview-drawer" class="glass-panel infoview-drawer hidden">
+                    <ui:Label text="도시 정보 오버레이 (InfoViews)" class="panel-title" />
+                    <ui:VisualElement class="infoview-grid">
+                        <ui:Button name="iv-none" text="🗺 기본 뷰" class="iv-btn active" />
+                        <ui:Button name="iv-traffic" text="🚗 교통 흐름" class="iv-btn" />
+                        <ui:Button name="iv-power" text="⚡ 전력망" class="iv-btn" />
+                        <ui:Button name="iv-water" text="💧 상수도" class="iv-btn" />
+                        <ui:Button name="iv-landvalue" text="💎 지가 분포" class="iv-btn" />
+                        <ui:Button name="iv-noise" text="🔊 소음 공해" class="iv-btn" />
+                        <ui:Button name="iv-edu" text="🎓 교육 수준" class="iv-btn" />
+                        <ui:Button name="iv-services" text="🏥 공공서비스" class="iv-btn" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="chirper-pill" class="glass-panel chirper-pill">
+                <ui:Label text="🐦" class="chirper-badge" />
+                <ui:Label name="lbl-chirper" text="#Neo Metropolia · 시민 행복도 84% · 교통 흐름 원활!" class="chirper-text" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="top-right-cluster" class="top-right-cluster">
+                <ui:Button name="btn-economy-modal" text="📊 재정 · 공급망" class="top-chip-btn" />
+                <ui:Button name="btn-lighting-cycle" text="☀ 주간" class="top-chip-btn" />
+                <ui:Button name="btn-reset-city" text="🔄 데모 리셋" class="top-chip-btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- MIDDLE LAYER: Floating Building Inspector (Right) & Economy/Education Modal (Center) -->
+        <ui:VisualElement name="middle-layer" class="middle-layer" picking-mode="Ignore">
+
+            <!-- Economy, Supply Chain & 4-Tier Education Dashboard Modal -->
+            <ui:VisualElement name="economy-modal" class="glass-panel economy-modal hidden">
+                <ui:VisualElement class="modal-header">
+                    <ui:Label text="📊 도시 재정 · 산업 공급망 · 시민 교육 현황" class="modal-title" />
+                    <ui:Button name="btn-close-economy" text="✕" class="close-btn" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="econ-row">
+                    <ui:VisualElement class="econ-card">
+                        <ui:Label text="재정 수지 (일일)" class="section-label" />
+                        <ui:Label name="lbl-econ-income" text="세수 수입: +₩0" class="stat-pos" />
+                        <ui:Label name="lbl-econ-upkeep" text="유지 비용: -₩0" class="stat-neg" />
+                        <ui:Label name="lbl-econ-net" text="순수익: +₩0 / 일" class="stat-strong" />
+
+                        <ui:Label text="구역별 세율 조절 (5% ~ 15%)" class="section-label mt-8" />
+                        <ui:Slider name="slider-tax-res" label="주거 세율 9%" low-value="5" high-value="15" value="9" class="tax-slider" />
+                        <ui:Slider name="slider-tax-com" label="상업 세율 9%" low-value="5" high-value="15" value="9" class="tax-slider" />
+                        <ui:Slider name="slider-tax-ind" label="산업 세율 9%" low-value="5" high-value="15" value="9" class="tax-slider" />
+                    </ui:VisualElement>
+
+                    <ui:VisualElement class="econ-card">
+                        <ui:Label text="산업 → 상업 물류 공급망" class="section-label" />
+                        <ui:Label name="lbl-supply-summary" text="자체 생산 0 · 상업 수요 0 · 충족률 100%" class="stat-sub" />
+                        <ui:VisualElement class="progress-track">
+                            <ui:VisualElement name="bar-supply-fill" class="progress-fill fill-cyan" />
+                        </ui:VisualElement>
+                        <ui:Label name="lbl-supply-trade" text="고속도로 수입 0 · 수출 0" class="stat-muted" />
+
+                        <ui:Label text="시민 4단계 교육 분포" class="section-label mt-10" />
+                        <ui:VisualElement class="stacked-bar">
+                            <ui:VisualElement name="edu-seg-unedu" class="edu-seg seg-unedu" />
+                            <ui:VisualElement name="edu-seg-edu" class="edu-seg seg-edu" />
+                            <ui:VisualElement name="edu-seg-well" class="edu-seg seg-well" />
+                            <ui:VisualElement name="edu-seg-high" class="edu-seg seg-high" />
+                        </ui:VisualElement>
+                        <ui:Label name="lbl-edu-breakdown" text="미교육 25% · 초등 35% · 고등 28% · 대졸 12%" class="stat-muted" />
+                        <ui:Label name="lbl-jobs-summary" text="고용 0 / 일자리 0 · 실업률 0%" class="stat-sub mt-4" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Floating Building Inspector Card -->
+            <ui:VisualElement name="building-inspector" class="glass-panel inspector-card hidden">
+                <ui:VisualElement class="modal-header">
+                    <ui:Label name="lbl-insp-title" text="IT·금융 오피스 타워" class="modal-title" />
+                    <ui:Button name="btn-close-inspector" text="✕" class="close-btn" />
+                </ui:VisualElement>
+                <ui:Label name="lbl-insp-level" text="★★★☆☆  Lv.3 / 5" class="insp-level" />
+                <ui:Label name="lbl-insp-stats" text="거주민 0명 · 일자리 240명 · 지가 72" class="stat-sub" />
+                <ui:VisualElement class="insp-badges">
+                    <ui:Label name="badge-insp-power" text="⚡ 전력 정상" class="status-pill ok" />
+                    <ui:Label name="badge-insp-water" text="💧 수도 정상" class="status-pill ok" />
+                    <ui:Label name="badge-insp-goods" text="📦 물류 정상" class="status-pill ok" />
+                </ui:VisualElement>
+                <ui:VisualElement class="insp-actions">
+                    <ui:Button name="btn-insp-historical" text="🏛 역사 건물 지정: OFF" class="action-btn" />
+                    <ui:Button name="btn-insp-bulldoze" text="🚜 건물 철거" class="action-btn danger" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- BOTTOM FLOATING COMMAND DECK (Cities: Skylines Iconic Toolbar) -->
+        <ui:VisualElement name="bottom-dock" class="bottom-dock" picking-mode="Ignore">
+
+            <!-- Contextual Sub-Tool Tray (Appears above main deck when a build category is active) -->
+            <ui:VisualElement name="subtool-tray" class="glass-panel subtool-tray hidden">
+                <ui:VisualElement name="subtool-modes" class="subtool-modes">
+                    <ui:Button name="btn-mode-straight" text="━ 직선" class="mode-btn active" />
+                    <ui:Button name="btn-mode-curved" text="〰 곡선 베지어" class="mode-btn" />
+                </ui:VisualElement>
+                <ui:VisualElement name="subtool-items" class="subtool-items" />
+                <ui:Label name="lbl-tool-hint" text="곡선 모드: 시작점 클릭 → 곡률 중간점 클릭 → 도착점 클릭 (우클릭/ESC 취소)" class="tool-hint" />
+            </ui:VisualElement>
+
+            <!-- Main Bottom Deck -->
+            <ui:VisualElement name="main-deck" class="glass-panel main-deck">
+
+                <!-- Speed & Clock Cluster -->
+                <ui:VisualElement class="deck-section speed-cluster">
+                    <ui:VisualElement class="speed-row">
+                        <ui:Button name="btn-spd-pause" text="❚❚" class="spd-btn" />
+                        <ui:Button name="btn-spd-1x" text="▶" class="spd-btn active" />
+                        <ui:Button name="btn-spd-2x" text="▶▶" class="spd-btn" />
+                        <ui:Button name="btn-spd-3x" text="⏭" class="spd-btn" />
+                    </ui:VisualElement>
+                    <ui:Label name="lbl-day-clock" text="Day 120 · 10:30" class="clock-label" />
+                </ui:VisualElement>
+
+                <!-- City KPIs Cluster -->
+                <ui:VisualElement class="deck-section kpi-cluster">
+                    <ui:VisualElement class="kpi-col">
+                        <ui:Label name="lbl-city-name" text="Neo Metropolia" class="city-name" />
+                        <ui:Label name="lbl-treasury" text="₩245,000 (+₩12,400/일)" class="treasury-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="kpi-col">
+                        <ui:Label name="lbl-population" text="👥 7,015명" class="pop-label" />
+                        <ui:Label name="lbl-health-traffic" text="😊 84%  ·  🚗 88%" class="mini-kpi" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- RCI Demand Bars -->
+                <ui:VisualElement class="deck-section rci-box">
+                    <ui:VisualElement class="rci-bar-wrap">
+                        <ui:VisualElement class="rci-track"><ui:VisualElement name="rci-r" class="rci-fill rci-green" /></ui:VisualElement>
+                        <ui:Label text="R" class="rci-lbl" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rci-bar-wrap">
+                        <ui:VisualElement class="rci-track"><ui:VisualElement name="rci-c" class="rci-fill rci-blue" /></ui:VisualElement>
+                        <ui:Label text="C" class="rci-lbl" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rci-bar-wrap">
+                        <ui:VisualElement class="rci-track"><ui:VisualElement name="rci-i" class="rci-fill rci-amber" /></ui:VisualElement>
+                        <ui:Label text="I" class="rci-lbl" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Primary Construction Category Tabs -->
+                <ui:VisualElement class="deck-section category-tabs">
+                    <ui:Button name="cat-inspect" text="🔍&#10;탐색" class="cat-btn active" />
+                    <ui:Button name="cat-roads" text="🛣&#10;도로" class="cat-btn" />
+                    <ui:Button name="cat-utilities" text="⚡&#10;인프라" class="cat-btn" />
+                    <ui:Button name="cat-services" text="🏛&#10;공공" class="cat-btn" />
+                    <ui:Button name="cat-parks" text="🌲&#10;공원" class="cat-btn" />
+                    <ui:Button name="cat-bulldoze" text="🚜&#10;철거" class="cat-btn danger-tab" />
+                </ui:VisualElement>
+
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

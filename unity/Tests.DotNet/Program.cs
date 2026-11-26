@@ -54,6 +54,16 @@ namespace Metroville.Core.Tests
             Assert(moved > 1.0f, $"Vehicles smoothly traverse Bezier splines ({moved:F1}m moved)");
             Assert(sim.State.Day > 120, $"Simulation day counter advanced (Day {sim.State.Day})");
 
+            // 5. Building Inspector pick, Historical Lock & BulldozeById
+            BuildingInstance firstB = sim.Buildings[0];
+            BuildingInstance picked = sim.FindBuildingAt(firstB.Position, 18f);
+            Assert(picked != null && picked.Id == firstB.Id, $"Building Inspector picks building #{firstB.Id} cleanly");
+            picked.HistoricalLocked = true;
+            Assert(picked.HistoricalLocked, "Historical building lock toggled cleanly");
+            int prevCount = sim.Buildings.Count;
+            bool deleted = sim.BulldozeBuildingById(picked.Id);
+            Assert(deleted && sim.Buildings.Count == prevCount - 1, $"BulldozeBuildingById removed building #{picked.Id}");
+
             Console.WriteLine("ALL CORE SIMULATION TESTS PASSED!");
             return 0;
         }
