@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     1-Click Windows x64 Installer Builder for Metroville 3D (Unity 6 URP).
     Auto-detects Unity 6 Editor, builds Metroville3D.exe headlessly, and packages
