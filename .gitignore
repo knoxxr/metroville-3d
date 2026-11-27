@@ -24,3 +24,7 @@ unity/*.booproj
 unity/.vs/
 unity/Tests.DotNet/bin/
 unity/Tests.DotNet/obj/
+
+# Godot 4 generated caches & local builds
+godot/.godot/
+godot/builds/

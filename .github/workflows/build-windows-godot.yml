@@ -1,0 +1,93 @@
+name: Build & Release Windows Installer (Godot 4.3)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'godot/**'
+      - '.github/workflows/build-windows-godot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release-windows:
+    name: Export Windows x64 .exe & Package Installer
+    runs-on: windows-latest
+    env:
+      GODOT_VERSION: 4.3-stable
+      GODOT_TPL_DIR: 4.3.stable
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Godot 4.3 Windows Editor & Export Templates
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\godot | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION/Godot_v$($env:GODOT_VERSION)_win64.exe.zip" -OutFile C:\godot\godot.zip
+          Expand-Archive -Path C:\godot\godot.zip -DestinationPath C:\godot -Force
+
+          $tplDir = Join-Path $env:APPDATA "Godot\export_templates\$env:GODOT_TPL_DIR"
+          New-Item -ItemType Directory -Force -Path $tplDir | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION/Godot_v$($env:GODOT_VERSION)_export_templates.tpz" -OutFile C:\godot\templates.zip
+          Expand-Archive -Path C:\godot\templates.zip -DestinationPath C:\godot\tpl_extract -Force
+          Copy-Item -Path C:\godot\tpl_extract\templates\* -Destination $tplDir -Recurse -Force
+
+      - name: Import & Export Metroville3D.exe (Windows x64)
+        shell: pwsh
+        run: |
+          $godot = "C:\godot\Godot_v$($env:GODOT_VERSION)_win64_console.exe"
+          New-Item -ItemType Directory -Force -Path godot\builds\windows | Out-Null
+          & $godot --headless --path godot --import --quit
+          & $godot --headless --path godot --export-release "Windows Desktop" "builds/windows/Metroville3D.exe"
+          if (!(Test-Path "godot\builds\windows\Metroville3D.exe")) {
+            throw "Failed to export godot\builds\windows\Metroville3D.exe"
+          }
+          Get-Item "godot\builds\windows\Metroville3D.exe" | Format-List Name, Length
+
+      - name: Package Single-File Windows Installer (.exe) & Portable ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path godot\builds\installer | Out-Null
+          Compress-Archive -Path godot\builds\windows\* -DestinationPath godot\builds\installer\Metroville3D-Portable-Windows-x64.zip -Force
+
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup -y
+          }
+          & $iscc godot\installer\MetrovilleGodotSetup.iss
+          if (!(Test-Path "godot\builds\installer\Metroville3D-Setup-Windows-x64.exe")) {
+            throw "Failed to compile Metroville3D-Setup-Windows-x64.exe"
+          }
+          Get-ChildItem godot\builds\installer\ | Format-Table Name, Length
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Metroville3D-Windows-Installer
+          path: |
+            godot/builds/installer/Metroville3D-Setup-Windows-x64.exe
+            godot/builds/installer/Metroville3D-Portable-Windows-x64.zip
+
+      - name: Publish Direct Download on GitHub Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "v1.0.0-windows"
+          $exists = gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag `
+              "godot/builds/installer/Metroville3D-Setup-Windows-x64.exe" `
+              "godot/builds/installer/Metroville3D-Portable-Windows-x64.zip" `
+              --clobber
+          } else {
+            gh release create $tag `
+              "godot/builds/installer/Metroville3D-Setup-Windows-x64.exe" `
+              "godot/builds/installer/Metroville3D-Portable-Windows-x64.zip" `
+              --title "Metroville 3D — Windows x64 설치 파일 (Godot 4.3)" `
+              --notes "Windows 10/11 64비트 네이티브 설치 파일(`Metroville3D-Setup-Windows-x64.exe`) 및 무설치 포터블 ZIP입니다. 별도 엔진 설치 없이 바로 실행할 수 있습니다."
+          }

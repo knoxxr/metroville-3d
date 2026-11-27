@@ -1,0 +1,91 @@
+class_name SkylinesCamera
+extends Camera3D
+
+var target := Vector3(485.0, 22.0, 465.0)
+var yaw_deg: float = 34.0
+var pitch_deg: float = 35.0
+var distance: float = 245.0
+
+var _cur_target := Vector3(485.0, 22.0, 465.0)
+var _cur_yaw: float = 34.0
+var _cur_pitch: float = 35.0
+var _cur_dist: float = 245.0
+
+var _dragging_orbit := false
+var _dragging_pan := false
+
+func _ready() -> void:
+	fov = 42.0
+	near = 0.8
+	far = 2600.0
+	snap_immediately()
+
+func snap_immediately() -> void:
+	_cur_target = target
+	_cur_yaw = yaw_deg
+	_cur_pitch = pitch_deg
+	_cur_dist = distance
+	_apply_transform()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			_dragging_orbit = mb.pressed
+		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
+			_dragging_pan = mb.pressed
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
+			distance = clampf(distance * 0.89, 36.0, 560.0)
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
+			distance = clampf(distance * 1.12, 36.0, 560.0)
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = event
+		if _dragging_orbit:
+			yaw_deg -= mm.relative.x * 0.28
+			pitch_deg = clampf(pitch_deg + mm.relative.y * 0.24, 14.0, 76.0)
+		elif _dragging_pan:
+			var rad := deg_to_rad(yaw_deg)
+			var right := Vector3(cos(rad), 0.0, -sin(rad))
+			var fwd := Vector3(-sin(rad), 0.0, -cos(rad))
+			var sc := distance * 0.0018
+			target -= right * mm.relative.x * sc
+			target += fwd * mm.relative.y * sc
+
+func _process(delta: float) -> void:
+	var h := 0.0
+	var v := 0.0
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT): h -= 1.0
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT): h += 1.0
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP): v += 1.0
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN): v -= 1.0
+	if Input.is_key_pressed(KEY_Q): yaw_deg += 68.0 * delta
+	if Input.is_key_pressed(KEY_E): yaw_deg -= 68.0 * delta
+
+	if absf(h) > 0.01 or absf(v) > 0.01:
+		var rad := deg_to_rad(yaw_deg)
+		var right := Vector3(cos(rad), 0.0, -sin(rad))
+		var fwd := Vector3(-sin(rad), 0.0, -cos(rad))
+		var spd := maxf(48.0, distance * 1.1) * delta
+		target += (right * h + fwd * v).normalized() * spd
+
+	target.x = clampf(target.x, 85.0, TerrainField.WORLD_SIZE - 85.0)
+	target.z = clampf(target.z, 85.0, TerrainField.WORLD_SIZE - 85.0)
+	target.y = maxf(TerrainField.WATER_LEVEL, TerrainField.sample_height(target.x, target.z))
+
+	var k := 1.0 - exp(-10.0 * delta)
+	_cur_target = _cur_target.lerp(target, k)
+	_cur_yaw = lerpf(_cur_yaw, yaw_deg, k)
+	_cur_pitch = lerpf(_cur_pitch, pitch_deg, k)
+	_cur_dist = lerpf(_cur_dist, distance, k)
+	_apply_transform()
+
+func _apply_transform() -> void:
+	var ry := deg_to_rad(_cur_yaw)
+	var rp := deg_to_rad(_cur_pitch)
+	var offset := Vector3(
+		sin(ry) * cos(rp) * _cur_dist,
+		sin(rp) * _cur_dist,
+		cos(ry) * cos(rp) * _cur_dist
+	)
+	global_position = _cur_target + offset
+	look_at(_cur_target, Vector3.UP)
