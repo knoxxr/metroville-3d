@@ -362,10 +362,10 @@ func _parse_cli_screenshot_args() -> void:
 			cam.distance = 1320.0
 			cam.snap_immediately()
 		elif arg == "--preset=closeup":
-			cam.target = Vector3(TerrainField.WORLD_CENTER - 20.0, 24.0, TerrainField.WORLD_CENTER - 20.0)
-			cam.yaw_deg = 22.0
-			cam.pitch_deg = 24.0
-			cam.distance = 165.0
+			cam.target = Vector3(TerrainField.WORLD_CENTER - 215.0, 28.0, TerrainField.WORLD_CENTER - 35.0)
+			cam.yaw_deg = 46.0
+			cam.pitch_deg = 36.0
+			cam.distance = 215.0
 			cam.snap_immediately()
 		elif arg == "--preset=sunset":
 			_light_mode = LightPreset.SUNSET
