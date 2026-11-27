@@ -44,11 +44,14 @@ namespace Metroville.Editor
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog(
-                "Metroville Unity 6 URP Setup Complete!",
-                "URP 6 렌더 파이프라인(4-Cascade CSM, Depth/Opaque Water, ACES 후처리), 머티리얼, 에셋 레지스트리 및 MainCity 씬이 자동으로 구성되었습니다.\n\n이제 상단 Play(▶) 버튼을 눌러 바로 플레이하세요!",
-                "확인"
-            );
+            if (!Application.isBatchMode)
+            {
+                EditorUtility.DisplayDialog(
+                    "Metroville Unity 6 URP Setup Complete!",
+                    "URP 6 렌더 파이프라인(4-Cascade CSM, Depth/Opaque Water, ACES 후처리), 머티리얼, 에셋 레지스트리 및 MainCity 씬이 자동으로 구성되었습니다.\n\n이제 상단 Play(▶) 버튼을 눌러 바로 플레이하세요!",
+                    "확인"
+                );
+            }
         }
 
         private static UniversalRenderPipelineAsset CreateOrLoadUrpAsset()

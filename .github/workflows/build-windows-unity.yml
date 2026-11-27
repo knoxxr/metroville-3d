@@ -1,0 +1,73 @@
+name: Build Windows Installer (Unity 6 URP)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-unity-windows:
+    name: Build StandaloneWindows64 (Unity 6)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-Metroville-Win64-${{ hashFiles('unity/Packages/manifest.json') }}
+          restore-keys: Library-Metroville-Win64-
+
+      - name: Build Unity 6 Windows x64 Player
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity
+          unityVersion: 6000.0.28f1
+          targetPlatform: StandaloneWindows64
+          buildName: Metroville3D
+          buildsPath: unity/Builds/Windows
+          buildMethod: Metroville.Editor.MetrovilleBuildScript.BuildWindowsCLI
+
+      - name: Upload Raw Windows Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Metroville3D-Windows-Raw
+          path: unity/Builds/Windows
+
+  package-windows-installer:
+    name: Package Single-File Windows Installer (.exe)
+    needs: build-unity-windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Raw Windows Build
+        uses: actions/download-artifact@v4
+        with:
+          name: Metroville3D-Windows-Raw
+          path: unity/Builds/Windows
+
+      - name: Compile Inno Setup Windows Installer
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup -y
+          }
+          & $iscc unity\Installer\MetrovilleSetup.iss
+
+      - name: Upload Metroville3D-Setup-Windows-x64.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: Metroville3D-Setup-Windows-x64
+          path: unity/Builds/Installer/Metroville3D-Setup-Windows-x64.exe

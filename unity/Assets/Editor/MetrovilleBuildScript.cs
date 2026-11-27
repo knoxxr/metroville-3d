@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -14,7 +15,7 @@ namespace Metroville.Editor
     {
         private static readonly string[] Scenes = { "Assets/Scenes/MainCity.unity" };
 
-        [MenuItem("Metroville/2. Build Windows Native (x64 .exe)", false, 20)]
+        [MenuItem("Metroville/5. Build Windows Native (x64 .exe)", false, 20)]
         public static void BuildWindows()
         {
             EnsureSceneExists();
@@ -30,7 +31,7 @@ namespace Metroville.Editor
             RunBuild(opts, "Windows x64");
         }
 
-        [MenuItem("Metroville/3. Build macOS Native (Universal .app)", false, 21)]
+        [MenuItem("Metroville/6. Build macOS Native (Universal .app)", false, 21)]
         public static void BuildMacOS()
         {
             EnsureSceneExists();
@@ -44,6 +45,55 @@ namespace Metroville.Editor
                 options = BuildOptions.CompressWithLz4HC
             };
             RunBuild(opts, "macOS Universal");
+        }
+
+        /// <summary>
+        /// Headless CLI entrypoint for Build-Windows-Installer.ps1 and GitHub Actions:
+        ///   Unity.exe -batchmode -nographics -projectPath unity -executeMethod Metroville.Editor.MetrovilleBuildScript.BuildWindowsCLI -quit
+        /// </summary>
+        public static void BuildWindowsCLI()
+        {
+            try
+            {
+                Debug.Log("[Metroville CLI] 1/3 Setting up URP 6 scene, shaders & UI Toolkit HUD...");
+                MetrovilleEditorSetup.SetupEverything();
+
+                Debug.Log("[Metroville CLI] 2/3 Downloading Poly Haven CC0 PBR textures (1k)...");
+                try
+                {
+                    MetrovilleCC0AssetPipeline.DownloadAndLinkPolyHavenPBR("1k");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[Metroville CLI] Poly Haven offline fallback (using procedural PBR): {ex.Message}");
+                }
+
+                Debug.Log("[Metroville CLI] 3/3 Building StandaloneWindows64 -> Builds/Windows/Metroville3D.exe...");
+                string outDir = "Builds/Windows";
+                Directory.CreateDirectory(outDir);
+                BuildPlayerOptions opts = new BuildPlayerOptions
+                {
+                    scenes = Scenes,
+                    locationPathName = Path.Combine(outDir, "Metroville3D.exe"),
+                    target = BuildTarget.StandaloneWindows64,
+                    options = BuildOptions.CompressWithLz4HC
+                };
+
+                BuildReport report = BuildPipeline.BuildPlayer(opts);
+                if (report.summary.result == BuildResult.Succeeded)
+                {
+                    Debug.Log($"[Metroville CLI] SUCCESS! ({report.summary.totalSize / (1024f * 1024f):F1} MB)");
+                }
+                else
+                {
+                    throw new Exception($"[Metroville CLI] FAILED: {report.summary.result}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                throw;
+            }
         }
 
         private static void EnsureSceneExists()
@@ -60,7 +110,8 @@ namespace Metroville.Editor
             if (report.summary.result == BuildResult.Succeeded)
             {
                 Debug.Log($"[Metroville] {label} 빌드 성공! ({report.summary.totalSize / (1024f * 1024f):F1} MB) -> {opts.locationPathName}");
-                EditorUtility.RevealInFinder(opts.locationPathName);
+                if (!Application.isBatchMode)
+                    EditorUtility.RevealInFinder(opts.locationPathName);
             }
             else
             {
