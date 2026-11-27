@@ -1,0 +1,126 @@
+name: Build & Release Android APK (Godot 4.3)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'godot/**'
+      - '.github/workflows/build-android-godot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release-android:
+    name: Export Signed Android APK (arm64-v8a + armeabi-v7a)
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.3-stable
+      GODOT_TPL_DIR: 4.3.stable
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Download Godot 4.3 Linux Editor & Export Templates
+        run: |
+          set -e
+          mkdir -p /tmp/godot "$HOME/.local/share/godot/export_templates/$GODOT_TPL_DIR"
+          curl -sSL -o /tmp/godot/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -qo /tmp/godot/godot.zip -d /tmp/godot
+          chmod +x "/tmp/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+
+          curl -sSL -o /tmp/godot/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -qo /tmp/godot/templates.tpz -d /tmp/godot/tpl_extract
+          cp -r /tmp/godot/tpl_extract/templates/* "$HOME/.local/share/godot/export_templates/$GODOT_TPL_DIR/"
+          ls -lh "$HOME/.local/share/godot/export_templates/$GODOT_TPL_DIR/android_release.apk"
+
+      - name: Configure Android SDK & Signing Keystores
+        run: |
+          set -e
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "Using ANDROID_HOME=$SDK_DIR"
+          echo "Using JAVA_HOME=$JAVA_HOME"
+
+          mkdir -p /tmp/keys "$HOME/.config/godot"
+          keytool -genkeypair -v \
+            -keystore /tmp/keys/debug.keystore \
+            -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          keytool -genkeypair -v \
+            -keystore /tmp/keys/metroville-release.keystore \
+            -alias metroville \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass metroville3d -keypass metroville3d \
+            -dname "CN=Metroville 3D,O=Metroville Studio,C=KR"
+
+          cat > "$HOME/.config/godot/editor_settings-4.3.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$SDK_DIR"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "/tmp/keys/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Import & Export Signed Metroville3D-Android.apk
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: /tmp/keys/metroville-release.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: metroville
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: metroville3d
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /tmp/keys/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          set -e
+          GODOT="/tmp/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          mkdir -p godot/builds/android
+          "$GODOT" --headless --path godot --import --quit
+          "$GODOT" --headless --path godot --export-release "Android" "builds/android/Metroville3D-Android.apk"
+
+          APK="godot/builds/android/Metroville3D-Android.apk"
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: APK was not generated!"
+            exit 1
+          fi
+          ls -lh "$APK"
+
+          SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          APKSIGNER=$(find "$SDK_DIR/build-tools" -name "apksigner" | sort -V | tail -n 1)
+          echo "Verifying APK signature with $APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK"
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Metroville3D-Android-APK
+          path: godot/builds/android/Metroville3D-Android.apk
+
+      - name: Publish Direct APK Download on GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="v1.0.0-android"
+          APK="godot/builds/android/Metroville3D-Android.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" \
+              --title "Metroville 3D — Android APK (Godot 4.3)" \
+              --notes "안드로이드 스마트폰·태블릿용 네이티브 설치 파일(\`Metroville3D-Android.apk\`, arm64-v8a + armeabi-v7a)입니다. 4km×4km 광역 지형, 1손가락 이동·배치, 2손가락 핀치 줌·회전 제스처를 지원합니다."
+          fi

@@ -15,6 +15,10 @@ var _dragging_orbit := false
 var _dragging_pan := false
 var allow_left_pan: bool = true
 var left_drag_moved_px: float = 0.0
+var is_multi_touching: bool = false
+var _touches: Dictionary = {}
+var _prev_pinch_dist: float = 0.0
+var _prev_two_center := Vector2.ZERO
 
 const MIN_DIST: float = 36.0
 const MAX_DIST: float = 1750.0
@@ -53,6 +57,53 @@ func snap_immediately() -> void:
 	_apply_transform()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var st: InputEventScreenTouch = event
+		if st.pressed:
+			_touches[st.index] = st.position
+			if _touches.size() >= 2:
+				is_multi_touching = true
+				_dragging_pan = false
+				left_drag_moved_px = 999.0
+				var ks := _touches.keys()
+				var p0: Vector2 = _touches[ks[0]]
+				var p1: Vector2 = _touches[ks[1]]
+				_prev_pinch_dist = p0.distance_to(p1)
+				_prev_two_center = (p0 + p1) * 0.5
+		else:
+			_touches.erase(st.index)
+			if _touches.size() < 2:
+				_prev_pinch_dist = 0.0
+				if is_multi_touching:
+					left_drag_moved_px = 999.0
+			if _touches.is_empty():
+				is_multi_touching = false
+		return
+	elif event is InputEventScreenDrag:
+		var sd: InputEventScreenDrag = event
+		_touches[sd.index] = sd.position
+		if _touches.size() >= 2:
+			is_multi_touching = true
+			_dragging_pan = false
+			left_drag_moved_px = 999.0
+			var ks := _touches.keys()
+			var p0: Vector2 = _touches[ks[0]]
+			var p1: Vector2 = _touches[ks[1]]
+			var cur_dist := p0.distance_to(p1)
+			var cur_mid := (p0 + p1) * 0.5
+			if _prev_pinch_dist > 12.0 and cur_dist > 12.0:
+				distance = clampf(distance * (_prev_pinch_dist / cur_dist), MIN_DIST, MAX_DIST)
+			if _prev_two_center.length_squared() > 0.0:
+				var dm := cur_mid - _prev_two_center
+				yaw_deg -= dm.x * 0.24
+				pitch_deg = clampf(pitch_deg + dm.y * 0.20, 14.0, 78.0)
+			_prev_pinch_dist = cur_dist
+			_prev_two_center = cur_mid
+		return
+
+	if is_multi_touching:
+		return
+
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if mb.button_index == MOUSE_BUTTON_RIGHT:

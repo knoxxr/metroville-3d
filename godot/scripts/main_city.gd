@@ -116,6 +116,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_3: _speed_mult = 5.0
 			KEY_ESCAPE: _cancel_draw()
 	elif event is InputEventMouseButton:
+		if cam.is_multi_touching:
+			return
 		if event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and _draw_has_start:
 			_cancel_draw()
 			return

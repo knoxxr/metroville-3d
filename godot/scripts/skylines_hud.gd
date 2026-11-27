@@ -135,10 +135,10 @@ func _build_ui() -> void:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Crisp Korean SystemFont fallback across Windows / Linux / macOS
+	# Crisp Korean SystemFont fallback across Windows / Android / Linux / macOS
 	var theme := Theme.new()
 	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Malgun Gothic", "Noto Sans CJK KR", "NanumGothic", "Apple SD Gothic Neo", "Segoe UI", "DejaVu Sans"])
+	font.font_names = PackedStringArray(["Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", "SamsungOne", "NanumGothic", "Apple SD Gothic Neo", "Segoe UI", "Roboto", "sans-serif", "DejaVu Sans"])
 	theme.default_font = font
 	theme.default_font_size = 13
 	root.theme = theme
