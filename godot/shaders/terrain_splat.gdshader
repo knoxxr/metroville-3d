@@ -51,36 +51,36 @@ void fragment() {
 	float h = v_world_pos.y;
 	float up = clamp(v_world_norm.y, 0.0, 1.0);
 
-	// Multi-scale natural meadow & soil variation (completely zero repeating tile grid!)
-	float macro = fbm(xz * 0.018);
-	float mid = fbm(xz * 0.085);
-	float micro = vnoise(xz * 0.55);
+	// Multi-scale natural meadow & soil variation (completely zero repeating tile grid across 4km!)
+	float macro = fbm(xz * 0.0065);
+	float mid = fbm(xz * 0.032);
+	float micro = vnoise(xz * 0.28);
 
 	vec3 grass = mix(meadow_col_b, meadow_col_a, macro);
 	grass *= (0.86 + 0.24 * mid + 0.08 * (micro - 0.5));
 
 	// Highland sage uplands
-	float high_t = smoothstep(23.0, 42.0, h);
-	vec3 col = mix(grass, highland_col * (0.88 + 0.22 * mid), high_t * 0.72);
+	float high_t = smoothstep(32.0, 68.0, h);
+	vec3 col = mix(grass, highland_col * (0.88 + 0.22 * mid), high_t * 0.78);
 
-	// Stratified Alpine Granite Cliffs on steep slopes & high ridges
-	float strata = sin(h * 1.45 + macro * 6.0) * 0.5 + 0.5;
+	// Stratified Alpine Granite Cliffs on steep slopes & high mountain ridges
+	float strata = sin(h * 0.65 + macro * 6.0) * 0.5 + 0.5;
 	vec3 rock = mix(cliff_col_b, cliff_col_a, strata * 0.65 + mid * 0.35);
-	float slope_rock = smoothstep(0.92, 0.74, up);
-	float alt_rock = smoothstep(50.0, 74.0, h) * 0.75;
+	float slope_rock = smoothstep(0.93, 0.74, up);
+	float alt_rock = smoothstep(78.0, 125.0, h) * 0.80;
 	float rock_mask = clamp(max(slope_rock, alt_rock), 0.0, 1.0);
 	col = mix(col, rock, rock_mask);
 
-	// Alpine snow caps on highest mountain peaks
-	float snow_mask = smoothstep(66.0, 82.0, h + (macro - 0.5) * 10.0) * smoothstep(0.62, 0.84, up);
+	// Alpine snow caps on majestic mountain peaks (>115m)
+	float snow_mask = smoothstep(112.0, 148.0, h + (macro - 0.5) * 18.0) * smoothstep(0.58, 0.82, up);
 	col = mix(col, snow_col, snow_mask);
 
 	// Sunlit coastal beach & river sand + damp waterline darkening
-	float sand_mask = 1.0 - smoothstep(water_level - 0.5, water_level + 3.0, h);
+	float sand_mask = 1.0 - smoothstep(water_level - 0.5, water_level + 3.4, h);
 	vec3 sand = sand_col * (0.90 + 0.18 * micro);
 	col = mix(col, sand, sand_mask * 0.92);
 
-	float wet_mask = 1.0 - smoothstep(water_level - 0.4, water_level + 1.1, h);
+	float wet_mask = 1.0 - smoothstep(water_level - 0.4, water_level + 1.2, h);
 	col *= mix(1.0, 0.68, wet_mask);
 
 	ALBEDO = col;

@@ -60,7 +60,7 @@ var state := {
 	"edu_basic": 0.30,
 	"edu_well": 0.30,
 	"edu_high": 0.18,
-	"event_pos": Vector3(316.0, 22.0, 515.0),
+	"event_pos": Vector3(TerrainField.WORLD_CENTER - 225.0, 24.0, TerrainField.WORLD_CENTER + 40.0),
 	"event_building_id": -1,
 	"event_text": ""
 }
@@ -87,93 +87,112 @@ func reset_and_build_demo() -> void:
 	state["time_hours"] = 10.5
 	state["treasury"] = 245000
 
-	# 1. Northern Scenic 6-Lane Highway
-	var hw0 := _h(140.0, 700.0)
-	var hw1 := _h(360.0, 715.0)
-	var hw2 := _h(640.0, 710.0)
-	var hw3 := _h(880.0, 690.0)
-	roads.get_or_create_node(hw0, 10.0, true)
-	roads.get_or_create_node(hw3, 10.0, true)
-	roads.add_segment(hw0, hw1, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(250.0, 725.0))
-	roads.add_segment(hw1, hw2, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(500.0, 730.0))
-	roads.add_segment(hw2, hw3, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(760.0, 705.0))
+	# Center the Metropolis at the heart of the 4,096m x 4,096m (16.7 km^2) regional valley!
+	var cx: float = TerrainField.WORLD_CENTER
+	var cz: float = TerrainField.WORLD_CENTER
 
-	# 2. West Downtown Curved Riverfront Boulevards
-	var w_n := _h(360.0, 610.0)
-	var w_m := _h(385.0, 470.0)
-	var w_s := _h(345.0, 320.0)
-	var w_o1 := _h(245.0, 590.0)
-	var w_o2 := _h(250.0, 465.0)
-	var w_o3 := _h(235.0, 330.0)
+	# 1. Grand Regional 6-Lane East-West Trans-Valley Highway (spans 2.7 km across the open plains!)
+	var hw_far_w := _h(cx - 1320.0, cz + 290.0)
+	var hw0 := _h(cx - 640.0, cz + 260.0)
+	var hw1 := _h(cx - 170.0, cz + 250.0)
+	var hw2 := _h(cx + 275.0, cz + 245.0)
+	var hw3 := _h(cx + 720.0, cz + 275.0)
+	var hw_far_e := _h(cx + 1320.0, cz + 310.0)
+
+	roads.get_or_create_node(hw_far_w, 12.0, true)
+	roads.get_or_create_node(hw_far_e, 12.0, true)
+	roads.add_segment(hw_far_w, hw0, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(cx - 980.0, cz + 230.0))
+	roads.add_segment(hw0, hw1, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(cx - 400.0, cz + 270.0))
+	roads.add_segment(hw1, hw2, RoadNetwork.RoadType.SIX_LANE_HIGHWAY)
+	roads.add_segment(hw2, hw3, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(cx + 500.0, cz + 250.0))
+	roads.add_segment(hw3, hw_far_e, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(cx + 1020.0, cz + 285.0))
+
+	# Regional Northbound Alpine Pass (-Z) & Southbound Harbor Bay Arterial (+Z)
+	var hw_north := _h(cx - 560.0, cz - 920.0)
+	var hw_south_w := _h(cx - 680.0, cz + 920.0)
+	roads.get_or_create_node(hw_north, 12.0, true)
+	roads.add_segment(hw0, hw_north, RoadNetwork.RoadType.SIX_LANE_HIGHWAY, _h(cx - 620.0, cz - 340.0))
+	roads.add_segment(hw0, hw_south_w, RoadNetwork.RoadType.FOUR_LANE, _h(cx - 670.0, cz + 590.0))
+
+	# 2. West Downtown Curved Riverfront Boulevards (clear of central river)
+	var w_n := _h(cx - 170.0, cz + 130.0)
+	var w_m := _h(cx - 155.0, cz - 20.0)
+	var w_s := _h(cx - 195.0, cz - 175.0)
+	var w_o1 := _h(cx - 310.0, cz + 115.0)
+	var w_o2 := _h(cx - 305.0, cz - 25.0)
+	var w_o3 := _h(cx - 325.0, cz - 165.0)
 
 	roads.add_segment(hw1, w_n, RoadNetwork.RoadType.FOUR_LANE)
-	roads.add_segment(w_n, w_m, RoadNetwork.RoadType.FOUR_LANE, _h(398.0, 540.0))
-	roads.add_segment(w_m, w_s, RoadNetwork.RoadType.FOUR_LANE, _h(386.0, 395.0))
+	roads.add_segment(w_n, w_m, RoadNetwork.RoadType.FOUR_LANE, _h(cx - 142.0, cz + 55.0))
+	roads.add_segment(w_m, w_s, RoadNetwork.RoadType.FOUR_LANE, _h(cx - 158.0, cz - 98.0))
 	roads.add_segment(w_o1, w_n, RoadNetwork.RoadType.TWO_LANE)
 	roads.add_segment(w_o2, w_m, RoadNetwork.RoadType.FOUR_LANE)
 	roads.add_segment(w_o3, w_s, RoadNetwork.RoadType.TWO_LANE)
-	roads.add_segment(w_o1, w_o2, RoadNetwork.RoadType.TWO_LANE, _h(230.0, 525.0))
-	roads.add_segment(w_o2, w_o3, RoadNetwork.RoadType.TWO_LANE, _h(228.0, 398.0))
+	roads.add_segment(w_o1, w_o2, RoadNetwork.RoadType.TWO_LANE, _h(cx - 325.0, cz + 45.0))
+	roads.add_segment(w_o2, w_o3, RoadNetwork.RoadType.TWO_LANE, _h(cx - 332.0, cz - 95.0))
 
-	# 3. East Riverbank Curved Boulevard & Hillside Suburbs
-	var e_n := _h(640.0, 600.0)
-	var e_m := _h(635.0, 465.0)
-	var e_s := _h(655.0, 325.0)
-	var e_o1 := _h(765.0, 585.0)
-	var e_o2 := _h(775.0, 455.0)
-	var e_o3 := _h(760.0, 330.0)
+	# 3. East Riverbank Curved Boulevard & Lakeside Suburbs (100% dry green land east of river!)
+	var e_n := _h(cx + 260.0, cz + 125.0)
+	var e_m := _h(cx + 235.0, cz - 25.0)
+	var e_s := _h(cx + 215.0, cz - 175.0)
+	var e_o1 := _h(cx + 390.0, cz + 110.0)
+	var e_o2 := _h(cx + 375.0, cz - 30.0)
+	var e_o3 := _h(cx + 355.0, cz - 165.0)
 
 	roads.add_segment(hw2, e_n, RoadNetwork.RoadType.FOUR_LANE)
-	roads.add_segment(e_n, e_m, RoadNetwork.RoadType.FOUR_LANE, _h(620.0, 535.0))
-	roads.add_segment(e_m, e_s, RoadNetwork.RoadType.FOUR_LANE, _h(632.0, 395.0))
+	roads.add_segment(e_n, e_m, RoadNetwork.RoadType.FOUR_LANE, _h(cx + 238.0, cz + 50.0))
+	roads.add_segment(e_m, e_s, RoadNetwork.RoadType.FOUR_LANE, _h(cx + 218.0, cz - 100.0))
 	roads.add_segment(e_n, e_o1, RoadNetwork.RoadType.TWO_LANE)
 	roads.add_segment(e_m, e_o2, RoadNetwork.RoadType.FOUR_LANE)
 	roads.add_segment(e_s, e_o3, RoadNetwork.RoadType.TWO_LANE)
-	roads.add_segment(e_o1, e_o2, RoadNetwork.RoadType.TWO_LANE, _h(790.0, 520.0))
-	roads.add_segment(e_o2, e_o3, RoadNetwork.RoadType.TWO_LANE, _h(785.0, 390.0))
+	roads.add_segment(e_o1, e_o2, RoadNetwork.RoadType.TWO_LANE, _h(cx + 402.0, cz + 40.0))
+	roads.add_segment(e_o2, e_o3, RoadNetwork.RoadType.TWO_LANE, _h(cx + 382.0, cz - 98.0))
 
-	# 4. Two Sweeping Suspension Bridges across the winding river!
+	# 4. Two Grand Downtown Suspension Bridges arching smoothly across the main river!
 	roads.add_segment(w_m, e_m, RoadNetwork.RoadType.FOUR_LANE)
 	roads.add_segment(w_s, e_s, RoadNetwork.RoadType.FOUR_LANE)
 
-	# 5. South-West Industrial Port Loop
-	var i1 := _h(210.0, 230.0)
-	var i2 := _h(330.0, 220.0)
+	# 5. North-West Industrial Park Loop
+	var i1 := _h(cx - 350.0, cz - 275.0)
+	var i2 := _h(cx - 215.0, cz - 285.0)
 	roads.add_segment(w_o3, i1, RoadNetwork.RoadType.TWO_LANE)
 	roads.add_segment(w_s, i2, RoadNetwork.RoadType.TWO_LANE)
 	roads.add_segment(i1, i2, RoadNetwork.RoadType.TWO_LANE)
 
 	# 6. Iconic Landmarks, Civic Services & Clean Energy
-	place_building("landmark", _h(316.0, 515.0), 0.0, 5, true)
-	place_building("university", _h(705.0, 520.0), PI * 0.5, 1, true)
-	place_building("hospital", _h(310.0, 412.0), 0.0, 1, true)
-	place_building("fire", _h(295.0, 355.0), 0.0, 1, true)
-	place_building("police", _h(700.0, 400.0), PI, 1, true)
-	place_building("school", _h(712.0, 360.0), PI * 0.5, 1, true)
-	place_building("park", _h(320.0, 466.0), 0.0, 1, true)
-	place_building("park", _h(702.0, 462.0), 0.0, 1, true)
-	place_building("solar", _h(172.0, 252.0), 0.0, 1, true)
-	place_building("wind", _h(192.0, 650.0), 0.5, 1, true)
-	place_building("wind", _h(232.0, 668.0), 0.5, 1, true)
-	place_building("wind", _h(815.0, 625.0), -0.4, 1, true)
-	place_building("water", _h(435.0, 608.0), 0.0, 1, true)
+	place_building("landmark", _h(cx - 225.0, cz + 40.0), 0.0, 5, true)
+	place_building("university", _h(cx + 290.0, cz + 45.0), PI * 0.5, 1, true)
+	place_building("hospital", _h(cx - 230.0, cz - 75.0), 0.0, 1, true)
+	place_building("fire", _h(cx - 245.0, cz - 135.0), 0.0, 1, true)
+	place_building("police", _h(cx + 288.0, cz - 88.0), PI, 1, true)
+	place_building("school", _h(cx + 298.0, cz - 132.0), PI * 0.5, 1, true)
+	place_building("park", _h(cx - 222.0, cz - 20.0), 0.0, 1, true)
+	place_building("park", _h(cx + 290.0, cz - 24.0), 0.0, 1, true)
+	place_building("solar", _h(cx - 395.0, cz - 255.0), 0.0, 1, true)
+	place_building("wind", _h(cx - 365.0, cz + 175.0), 0.5, 1, true)
+	place_building("wind", _h(cx - 325.0, cz + 195.0), 0.5, 1, true)
+	place_building("wind", _h(cx + 425.0, cz + 150.0), -0.4, 1, true)
+	place_building("water", _h(cx - 65.0, cz + 145.0), 0.0, 1, true)
 
-	# 7. Populate District Buildings aligned cleanly along every curved Bezier road!
+	# 7. Populate District Buildings aligned cleanly along downtown & riverbank curved roads!
 	for seg in roads.segments.values():
-		var lots := roads.generate_roadside_lots(seg, 23.0)
+		var lots := roads.generate_roadside_lots(seg, 24.0)
 		for lot in lots:
 			var lp: Vector3 = lot["pos"]
+			# Keep outer regional expressways open countryside for the player to develop!
+			if Vector2(lp.x - cx, lp.z - cz).length() > 540.0:
+				continue
 			if TerrainField.is_water(lp.x, lp.z):
 				continue
-			if _is_near_building(lp, 17.5):
+			if _is_near_building(lp, 18.0):
 				continue
 			var pos := Vector3(lp.x, TerrainField.sample_height(lp.x, lp.z), lp.z)
 			var btype := "res_low"
 			var lvl := 1
-			if pos.z < 288.0 and pos.x < 420.0:
+			if pos.z < cz - 210.0 and pos.x < cx - 80.0:
 				btype = "ind"
 				lvl = rng.randi_range(1, 3)
-			elif pos.x < 430.0:
+			elif pos.x < cx - 60.0:
 				var r := rng.randf()
 				if r < 0.42:
 					btype = "office"; lvl = rng.randi_range(3, 5)
@@ -383,7 +402,7 @@ func run_tick() -> void:
 	state["demand_i"] = clampf(0.36 + (0.38 if com_demand > ind_goods else 0.08) + state["unemployment"], 0.08, 1.0)
 
 	# Track real 3D hotspot location for the active Chirper / Event alert (click to jump!)
-	var focus_pos := Vector3(316.0, 22.0, 515.0)
+	var focus_pos := Vector3(TerrainField.WORLD_CENTER - 225.0, 24.0, TerrainField.WORLD_CENTER + 40.0)
 	var focus_bid := -1
 	var focus_msg := "#%s | 인구 %d명 · 실업률 %d%% · 물류 충족 %d%% [클릭하여 도심 이동]" % [
 		state["city_name"], pop, int(state["unemployment"] * 100.0), int(state["goods_ratio"] * 100.0)

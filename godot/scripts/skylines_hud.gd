@@ -8,6 +8,7 @@ signal infoview_changed(mode: String)
 signal tool_selected(tool_mode: String, sub_id: String, curved: bool)
 signal bulldoze_building_requested(bid: int)
 signal event_clicked
+signal view_preset_requested(preset: String)
 
 var _btn_chirper: Button
 var _lbl_clock: Label
@@ -168,9 +169,17 @@ func _build_ui() -> void:
 	btn_econ.pressed.connect(func(): _econ_modal.visible = not _econ_modal.visible)
 	top_bar.add_child(btn_econ)
 
-	_btn_light = _make_btn("주간", Vector2(74, 36), Color(0.10, 0.16, 0.26))
+	_btn_light = _make_btn("주간", Vector2(68, 36), Color(0.10, 0.16, 0.26))
 	_btn_light.pressed.connect(func(): lighting_cycled.emit())
 	top_bar.add_child(_btn_light)
+
+	var btn_view := _make_btn("광역 뷰", Vector2(78, 36), Color(0.08, 0.34, 0.54))
+	btn_view.pressed.connect(func():
+		var is_sat := btn_view.text == "광역 뷰"
+		btn_view.text = "도심 뷰" if is_sat else "광역 뷰"
+		view_preset_requested.emit("satellite" if is_sat else "downtown")
+	)
+	top_bar.add_child(btn_view)
 
 	var btn_reset := _make_btn("데모 리셋", Vector2(82, 36), Color(0.10, 0.16, 0.26))
 	btn_reset.pressed.connect(func(): reset_requested.emit())

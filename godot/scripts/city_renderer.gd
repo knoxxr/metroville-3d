@@ -425,33 +425,37 @@ func _build_valley_forest(sim: CitySimulation) -> void:
 	var oak_transforms: Array[Transform3D] = []
 
 	var attempts := 0
-	while (pine_transforms.size() + oak_transforms.size()) < 420 and attempts < 3000:
+	while (pine_transforms.size() + oak_transforms.size()) < 4200 and attempts < 18000:
 		attempts += 1
-		var x := rng.randf_range(65.0, TerrainField.WORLD_SIZE - 65.0)
-		var z := rng.randf_range(115.0, TerrainField.WORLD_SIZE - 65.0)
+		var x := rng.randf_range(220.0, TerrainField.WORLD_SIZE - 220.0)
+		var z := rng.randf_range(220.0, TerrainField.WORLD_SIZE - 460.0)
 		var y := TerrainField.sample_height(x, z)
-		if y < TerrainField.WATER_LEVEL + 1.3 or y > 62.0:
+		if y < TerrainField.WATER_LEVEL + 1.5 or y > 118.0:
 			continue
+		var grove_n := sin(x * 0.0042) * cos(z * 0.0045) + sin((x + z) * 0.008) * 0.5
+		if y < 38.0 and grove_n < -0.25:
+			continue
+
 		var blocked := false
 		for b in sim.buildings:
 			var bp: Vector3 = b["pos"]
-			if (bp.x - x) * (bp.x - x) + (bp.z - z) * (bp.z - z) < 23.0 * 23.0:
+			if (bp.x - x) * (bp.x - x) + (bp.z - z) * (bp.z - z) < 26.0 * 26.0:
 				blocked = true; break
 		if blocked:
 			continue
 		for seg in sim.roads.segments.values():
-			for t in [0.25, 0.5, 0.75]:
+			for t in [0.15, 0.38, 0.62, 0.85]:
 				var rp := sim.roads.sample_pos(seg, t)
-				if (rp.x - x) * (rp.x - x) + (rp.z - z) * (rp.z - z) < 22.0 * 22.0:
+				if (rp.x - x) * (rp.x - x) + (rp.z - z) * (rp.z - z) < 28.0 * 28.0:
 					blocked = true; break
 			if blocked:
 				break
 		if blocked:
 			continue
 
-		var sc := rng.randf_range(0.85, 1.55)
-		var xf := Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc)), Vector3(x, y - 0.25, z))
-		if y > 24.0 or rng.randf() < 0.65:
+		var sc := rng.randf_range(0.95, 1.85)
+		var xf := Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc)), Vector3(x, y - 0.3, z))
+		if y > 30.0 or rng.randf() < 0.68:
 			pine_transforms.append(xf)
 		else:
 			oak_transforms.append(xf)

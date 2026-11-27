@@ -56,6 +56,10 @@ func _ready() -> void:
 	)
 	hud.bulldoze_building_requested.connect(func(bid): sim.bulldoze_by_id(bid))
 	hud.event_clicked.connect(_focus_active_event)
+	hud.view_preset_requested.connect(func(p):
+		if p == "satellite": cam.set_satellite_overview()
+		else: cam.set_downtown_view()
+	)
 
 	sim.world_changed.connect(func(): renderer.rebuild_world(sim))
 	sim.reset_and_build_demo()
@@ -66,7 +70,7 @@ func _ready() -> void:
 	_parse_cli_screenshot_args()
 
 func _focus_active_event() -> void:
-	var pos: Vector3 = sim.state.get("event_pos", Vector3(316.0, 22.0, 515.0))
+	var pos: Vector3 = sim.state.get("event_pos", Vector3(TerrainField.WORLD_CENTER - 225.0, 24.0, TerrainField.WORLD_CENTER + 40.0))
 	cam.focus_on(pos, 138.0)
 	var bid: int = sim.state.get("event_building_id", -1)
 	if bid > 0:
@@ -186,7 +190,7 @@ func _cancel_draw() -> void:
 func _raycast_ground(screen_pos: Vector2) -> Dictionary:
 	var from := cam.project_ray_origin(screen_pos)
 	var dir := cam.project_ray_normal(screen_pos)
-	var query := PhysicsRayQueryParameters3D.create(from, from + dir * 2400.0)
+	var query := PhysicsRayQueryParameters3D.create(from, from + dir * 9200.0)
 	var res := get_world_3d().direct_space_state.intersect_ray(query)
 	if not res.is_empty():
 		return {"hit": true, "pos": res["position"]}
@@ -247,10 +251,10 @@ func _setup_environment_and_sun() -> void:
 	sun_light.name = "DirectionalSun"
 	sun_light.shadow_enabled = true
 	sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	sun_light.directional_shadow_max_distance = 640.0
+	sun_light.directional_shadow_max_distance = 1200.0
 	sun_light.directional_shadow_blend_splits = true
 	sun_light.shadow_bias = 0.05
-	sun_light.shadow_normal_bias = 1.2
+	sun_light.shadow_normal_bias = 1.4
 	add_child(sun_light)
 
 	sky_mat = ProceduralSkyMaterial.new()
@@ -280,15 +284,15 @@ func _setup_environment_and_sun() -> void:
 	env.glow_hdr_threshold = 1.40
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	env.fog_density = 0.00052
-	env.fog_aerial_perspective = 0.62
-	env.fog_sky_affect = 0.32
+	env.fog_density = 0.000075
+	env.fog_aerial_perspective = 0.42
+	env.fog_sky_affect = 0.25
 
 	var cam_attr := CameraAttributesPractical.new()
 	cam_attr.dof_blur_far_enabled = true
-	cam_attr.dof_blur_far_distance = 440.0
-	cam_attr.dof_blur_far_transition = 280.0
-	cam_attr.dof_blur_amount = 0.07
+	cam_attr.dof_blur_far_distance = 1100.0
+	cam_attr.dof_blur_far_transition = 600.0
+	cam_attr.dof_blur_amount = 0.04
 
 	world_env = WorldEnvironment.new()
 	world_env.environment = env
@@ -296,7 +300,7 @@ func _setup_environment_and_sun() -> void:
 	add_child(world_env)
 
 func _setup_terrain_and_water() -> void:
-	var t_mesh := TerrainField.build_terrain_mesh(160)
+	var t_mesh := TerrainField.build_terrain_mesh(220)
 	var t_mat := ShaderMaterial.new()
 	t_mat.shader = load("res://shaders/terrain_splat.gdshader")
 	t_mat.set_shader_parameter("water_level", TerrainField.WATER_LEVEL)
@@ -307,15 +311,15 @@ func _setup_terrain_and_water() -> void:
 	terrain_mi.material_override = t_mat
 	add_child(terrain_mi)
 
-	# Accurate trimesh collision for mouse raycasting
+	# Accurate trimesh collision for mouse raycasting across entire 4,096m x 4,096m region
 	var body := StaticBody3D.new()
 	var col_shape := CollisionShape3D.new()
 	col_shape.shape = t_mesh.create_trimesh_shape()
 	body.add_child(col_shape)
 	terrain_mi.add_child(body)
 
-	# Analytical-Depth Coastal & River Water Mesh at Y = 14.0m (identical across Vulkan Forward+ and OpenGL3!)
-	var w_mesh := TerrainField.build_water_mesh(160)
+	# Analytical-Depth Coastal, Lake & River Water Mesh at Y = 16.0m
+	var w_mesh := TerrainField.build_water_mesh(192)
 	water_mat = ShaderMaterial.new()
 	water_mat.shader = load("res://shaders/cities_water.gdshader")
 	var water_mi := MeshInstance3D.new()
@@ -325,41 +329,47 @@ func _setup_terrain_and_water() -> void:
 	water_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(water_mi)
 
-	# Seamless infinite outer ocean horizon skirt (prevents any world-edge gap past the south bay)
+	# Seamless 14km outer ocean horizon skirt (zero map edge even at 1,750m satellite zoom!)
 	var outer_sea := MeshInstance3D.new()
 	var sea_plane := PlaneMesh.new()
-	sea_plane.size = Vector2(4200.0, 4200.0)
+	sea_plane.size = Vector2(14000.0, 14000.0)
 	var sea_mat := StandardMaterial3D.new()
 	sea_mat.albedo_color = Color(0.06, 0.22, 0.36)
 	sea_mat.roughness = 0.16
 	sea_mat.metallic = 0.22
 	outer_sea.mesh = sea_plane
 	outer_sea.material_override = sea_mat
-	outer_sea.position = Vector3(TerrainField.WORLD_SIZE * 0.5, TerrainField.WATER_LEVEL - 0.18, TerrainField.WORLD_SIZE * 0.5)
+	outer_sea.position = Vector3(TerrainField.WORLD_CENTER, TerrainField.WATER_LEVEL - 0.22, TerrainField.WORLD_CENTER)
 	outer_sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(outer_sea)
 
 func _parse_cli_screenshot_args() -> void:
-	cam.target = Vector3(500.0, 22.0, 465.0)
-	cam.yaw_deg = 32.0
-	cam.pitch_deg = 33.0
-	cam.distance = 325.0
+	cam.target = Vector3(TerrainField.WORLD_CENTER - 10.0, 24.0, TerrainField.WORLD_CENTER - 20.0)
+	cam.yaw_deg = 26.0
+	cam.pitch_deg = 28.0
+	cam.distance = 385.0
 	cam.snap_immediately()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
 			_shot_path = arg.substr(13)
 			_shot_frames_left = 10
+		elif arg == "--preset=satellite":
+			cam.target = Vector3(TerrainField.WORLD_CENTER, 28.0, TerrainField.WORLD_CENTER - 180.0)
+			cam.yaw_deg = 18.0
+			cam.pitch_deg = 25.0
+			cam.distance = 1320.0
+			cam.snap_immediately()
 		elif arg == "--preset=closeup":
-			cam.target = Vector3(465.0, 24.0, 465.0)
+			cam.target = Vector3(TerrainField.WORLD_CENTER - 20.0, 24.0, TerrainField.WORLD_CENTER - 20.0)
 			cam.yaw_deg = 22.0
 			cam.pitch_deg = 24.0
-			cam.distance = 148.0
+			cam.distance = 165.0
 			cam.snap_immediately()
 		elif arg == "--preset=sunset":
 			_light_mode = LightPreset.SUNSET
 			_apply_lighting()
-			cam.target = Vector3(500.0, 22.0, 465.0)
-			cam.yaw_deg = 38.0
-			cam.pitch_deg = 30.0
-			cam.distance = 310.0
+			cam.target = Vector3(TerrainField.WORLD_CENTER, 24.0, TerrainField.WORLD_CENTER - 120.0)
+			cam.yaw_deg = 22.0
+			cam.pitch_deg = 26.0
+			cam.distance = 1150.0
 			cam.snap_immediately()

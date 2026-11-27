@@ -1,34 +1,49 @@
 class_name SkylinesCamera
 extends Camera3D
 
-var target := Vector3(485.0, 22.0, 465.0)
-var yaw_deg: float = 34.0
-var pitch_deg: float = 35.0
-var distance: float = 245.0
+var target := Vector3(TerrainField.WORLD_CENTER, 24.0, TerrainField.WORLD_CENTER)
+var yaw_deg: float = 32.0
+var pitch_deg: float = 34.0
+var distance: float = 360.0
 
-var _cur_target := Vector3(485.0, 22.0, 465.0)
-var _cur_yaw: float = 34.0
-var _cur_pitch: float = 35.0
-var _cur_dist: float = 245.0
+var _cur_target := Vector3(TerrainField.WORLD_CENTER, 24.0, TerrainField.WORLD_CENTER)
+var _cur_yaw: float = 32.0
+var _cur_pitch: float = 34.0
+var _cur_dist: float = 360.0
 
 var _dragging_orbit := false
 var _dragging_pan := false
 var allow_left_pan: bool = true
 var left_drag_moved_px: float = 0.0
 
+const MIN_DIST: float = 36.0
+const MAX_DIST: float = 1750.0
+
 func _ready() -> void:
 	fov = 42.0
-	near = 0.8
-	far = 2600.0
+	near = 1.2
+	far = 9500.0
 	snap_immediately()
 
-func focus_on(world_pos: Vector3, zoom_dist: float = 135.0) -> void:
+func focus_on(world_pos: Vector3, zoom_dist: float = 155.0) -> void:
 	target = Vector3(
-		clampf(world_pos.x, 85.0, TerrainField.WORLD_SIZE - 85.0),
+		clampf(world_pos.x, 180.0, TerrainField.WORLD_SIZE - 180.0),
 		maxf(TerrainField.WATER_LEVEL, TerrainField.sample_height(world_pos.x, world_pos.z)),
-		clampf(world_pos.z, 85.0, TerrainField.WORLD_SIZE - 85.0)
+		clampf(world_pos.z, 180.0, TerrainField.WORLD_SIZE - 180.0)
 	)
-	distance = clampf(minf(distance, zoom_dist), 36.0, 560.0)
+	distance = clampf(minf(distance, zoom_dist), MIN_DIST, MAX_DIST)
+
+func set_satellite_overview() -> void:
+	target = Vector3(TerrainField.WORLD_CENTER, 26.0, TerrainField.WORLD_CENTER - 160.0)
+	yaw_deg = 18.0
+	pitch_deg = 26.0
+	distance = 1320.0
+
+func set_downtown_view() -> void:
+	target = Vector3(TerrainField.WORLD_CENTER - 10.0, 24.0, TerrainField.WORLD_CENTER - 20.0)
+	yaw_deg = 26.0
+	pitch_deg = 29.0
+	distance = 365.0
 
 func snap_immediately() -> void:
 	_cur_target = target
@@ -51,14 +66,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				_dragging_pan = false
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			distance = clampf(distance * 0.89, 36.0, 560.0)
+			distance = clampf(distance * 0.87, MIN_DIST, MAX_DIST)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			distance = clampf(distance * 1.12, 36.0, 560.0)
+			distance = clampf(distance * 1.15, MIN_DIST, MAX_DIST)
 	elif event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event
 		if _dragging_orbit:
 			yaw_deg -= mm.relative.x * 0.28
-			pitch_deg = clampf(pitch_deg + mm.relative.y * 0.24, 14.0, 76.0)
+			pitch_deg = clampf(pitch_deg + mm.relative.y * 0.24, 14.0, 78.0)
 		elif _dragging_pan:
 			left_drag_moved_px += mm.relative.length()
 			var rad := deg_to_rad(yaw_deg)
@@ -82,11 +97,11 @@ func _process(delta: float) -> void:
 		var rad := deg_to_rad(yaw_deg)
 		var right := Vector3(cos(rad), 0.0, -sin(rad))
 		var fwd := Vector3(-sin(rad), 0.0, -cos(rad))
-		var spd := maxf(48.0, distance * 1.1) * delta
+		var spd := maxf(65.0, distance * 1.15) * delta
 		target += (right * h + fwd * v).normalized() * spd
 
-	target.x = clampf(target.x, 85.0, TerrainField.WORLD_SIZE - 85.0)
-	target.z = clampf(target.z, 85.0, TerrainField.WORLD_SIZE - 85.0)
+	target.x = clampf(target.x, 180.0, TerrainField.WORLD_SIZE - 180.0)
+	target.z = clampf(target.z, 180.0, TerrainField.WORLD_SIZE - 180.0)
 	target.y = maxf(TerrainField.WATER_LEVEL, TerrainField.sample_height(target.x, target.z))
 
 	var k := 1.0 - exp(-10.0 * delta)
