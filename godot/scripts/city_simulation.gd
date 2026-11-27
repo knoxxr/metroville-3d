@@ -59,7 +59,10 @@ var state := {
 	"edu_unedu": 0.22,
 	"edu_basic": 0.30,
 	"edu_well": 0.30,
-	"edu_high": 0.18
+	"edu_high": 0.18,
+	"event_pos": Vector3(316.0, 22.0, 515.0),
+	"event_building_id": -1,
+	"event_text": ""
 }
 
 var _next_b_id: int = 1
@@ -378,6 +381,45 @@ func run_tick() -> void:
 	state["demand_r"] = clampf(0.45 + (0.35 if jobs > workforce else -0.15) + (state["happiness"] - 0.65), 0.08, 1.0)
 	state["demand_c"] = clampf(0.42 + (float(pop) / 6000.0) * 0.25, 0.08, 1.0)
 	state["demand_i"] = clampf(0.36 + (0.38 if com_demand > ind_goods else 0.08) + state["unemployment"], 0.08, 1.0)
+
+	# Track real 3D hotspot location for the active Chirper / Event alert (click to jump!)
+	var focus_pos := Vector3(316.0, 22.0, 515.0)
+	var focus_bid := -1
+	var focus_msg := "#%s | 인구 %d명 · 실업률 %d%% · 물류 충족 %d%% [클릭하여 도심 이동]" % [
+		state["city_name"], pop, int(state["unemployment"] * 100.0), int(state["goods_ratio"] * 100.0)
+	]
+	for b in buildings:
+		if b["type"] == "landmark":
+			focus_pos = b["pos"]
+			focus_bid = b["id"]
+			break
+	if not p_ok:
+		for b in buildings:
+			if b["type"] == "solar" or b["type"] == "wind" or b["type"] == "office":
+				focus_pos = b["pos"]; focus_bid = b["id"]; break
+		focus_msg = "[전력 경보] 발전 용량이 부족합니다! (클릭하여 해당 위치로 이동)"
+	elif not w_ok:
+		for b in buildings:
+			if b["type"] == "water" or b["type"] == "res_high":
+				focus_pos = b["pos"]; focus_bid = b["id"]; break
+		focus_msg = "[수도 경보] 취수 용량이 부족합니다! (클릭하여 해당 위치로 이동)"
+	elif state["goods_ratio"] < 0.80:
+		for b in buildings:
+			if b["type"] == "com_high" or b["type"] == "ind":
+				focus_pos = b["pos"]; focus_bid = b["id"]; break
+		focus_msg = "[물류 소식] 상업지구 상품 수요 급증! (클릭하여 해당 위치로 이동)"
+	elif state["traffic_flow"] < 0.78:
+		var max_c := -1.0
+		for seg in roads.segments.values():
+			if seg["congestion"] > max_c:
+				max_c = seg["congestion"]
+				focus_pos = roads.sample_pos(seg, 0.5)
+				focus_bid = -1
+		focus_msg = "[교통 혼잡] 간선도로 정체 발생! (클릭하여 혼잡 구간으로 이동)"
+
+	state["event_pos"] = focus_pos
+	state["event_building_id"] = focus_bid
+	state["event_text"] = focus_msg
 
 func _spawn_initial_vehicles(count: int) -> void:
 	var nids := roads.nodes.keys()

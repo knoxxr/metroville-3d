@@ -133,6 +133,7 @@ export interface ActiveEvent {
   desc: string;
   choiceA: { label: string; cost: number; desc: string };
   choiceB: { label: string; cost: number; desc: string };
+  target?: { x: number; y: number } | null;
 }
 
 export interface ActiveBuff {
@@ -167,6 +168,7 @@ export interface CityState {
   activeBuffs: ActiveBuff[];
   nextEventDay: number;
   chirp: string;
+  chirpTarget?: { x: number; y: number } | null;
 }
 
 export interface ToolDef {

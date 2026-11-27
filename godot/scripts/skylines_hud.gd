@@ -7,8 +7,9 @@ signal reset_requested
 signal infoview_changed(mode: String)
 signal tool_selected(tool_mode: String, sub_id: String, curved: bool)
 signal bulldoze_building_requested(bid: int)
+signal event_clicked
 
-var _lbl_chirper: Label
+var _btn_chirper: Button
 var _lbl_clock: Label
 var _lbl_city: Label
 var _lbl_treasury: Label
@@ -86,10 +87,12 @@ func refresh_telemetry(sim: CitySimulation) -> void:
 	_lbl_pop.text = "인구 %s명" % _fmt_num(s["population"])
 	_lbl_kpi.text = "행복 %d%% · 교통 %d%%" % [int(s["happiness"] * 100.0), int(s["traffic_flow"] * 100.0)]
 
-	var status_msg := "인구 %s명 · 실업률 %d%% · 물류 충족 %d%% · 쾌적한 메트로폴리스!" % [
-		_fmt_num(s["population"]), int(s["unemployment"] * 100.0), int(s["goods_ratio"] * 100.0)
-	]
-	_lbl_chirper.text = "#%s  |  %s" % [s["city_name"], status_msg]
+	var status_msg: String = s.get("event_text", "")
+	if status_msg.is_empty():
+		status_msg = "#%s | 인구 %s명 · 실업률 %d%% · 물류 충족 %d%% [클릭하여 이동]" % [
+			s["city_name"], _fmt_num(s["population"]), int(s["unemployment"] * 100.0), int(s["goods_ratio"] * 100.0)
+		]
+	_btn_chirper.text = status_msg
 
 	_rci_r.custom_minimum_size.y = clampf(s["demand_r"] * 38.0, 4.0, 38.0)
 	_rci_c.custom_minimum_size.y = clampf(s["demand_c"] * 38.0, 4.0, 38.0)
@@ -154,12 +157,9 @@ func _build_ui() -> void:
 	var sp1 := Control.new(); sp1.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sp1.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top_bar.add_child(sp1)
 
-	var chirper := _make_glass_panel()
-	var ch_hb := HBoxContainer.new(); chirper.add_child(ch_hb)
-	_lbl_chirper = Label.new(); _lbl_chirper.text = "#Neo Metropolia"
-	_lbl_chirper.add_theme_color_override("font_color", Color(0.95, 0.97, 1.0))
-	ch_hb.add_child(_lbl_chirper)
-	top_bar.add_child(chirper)
+	_btn_chirper = _make_btn("#Neo Metropolia [클릭하여 위치 이동]", Vector2(420, 38), Color(0.06, 0.11, 0.19))
+	_btn_chirper.pressed.connect(func(): event_clicked.emit())
+	top_bar.add_child(_btn_chirper)
 
 	var sp2 := Control.new(); sp2.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sp2.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top_bar.add_child(sp2)
@@ -318,9 +318,9 @@ func _build_ui() -> void:
 	_rci_c = _make_rci_bar(rci_hb, Color(0.22, 0.56, 0.96))
 	_rci_i = _make_rci_bar(rci_hb, Color(0.96, 0.66, 0.16))
 
-	# 6 Category Tabs
+	# 6 Category Tabs (Default: 이동 / Move + Click to Inspect)
 	var cat_hb := HBoxContainer.new(); dh.add_child(cat_hb)
-	for cat in [["탐색", "inspect"], ["도로", "roads"], ["인프라", "util"], ["공공", "civic"], ["공원", "park"], ["철거", "bulldoze"]]:
+	for cat in [["이동", "inspect"], ["도로", "roads"], ["인프라", "util"], ["공공", "civic"], ["공원", "park"], ["철거", "bulldoze"]]:
 		var cb := _make_btn(cat[0], Vector2(62, 50), Color(0.02, 0.52, 0.78) if cat[1] == "inspect" else Color(0.14, 0.20, 0.30))
 		var ckey: String = cat[1]
 		cb.pressed.connect(func(): _select_category(ckey))

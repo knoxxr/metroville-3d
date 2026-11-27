@@ -13,12 +13,22 @@ var _cur_dist: float = 245.0
 
 var _dragging_orbit := false
 var _dragging_pan := false
+var allow_left_pan: bool = true
+var left_drag_moved_px: float = 0.0
 
 func _ready() -> void:
 	fov = 42.0
 	near = 0.8
 	far = 2600.0
 	snap_immediately()
+
+func focus_on(world_pos: Vector3, zoom_dist: float = 135.0) -> void:
+	target = Vector3(
+		clampf(world_pos.x, 85.0, TerrainField.WORLD_SIZE - 85.0),
+		maxf(TerrainField.WATER_LEVEL, TerrainField.sample_height(world_pos.x, world_pos.z)),
+		clampf(world_pos.z, 85.0, TerrainField.WORLD_SIZE - 85.0)
+	)
+	distance = clampf(minf(distance, zoom_dist), 36.0, 560.0)
 
 func snap_immediately() -> void:
 	_cur_target = target
@@ -34,6 +44,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_dragging_orbit = mb.pressed
 		elif mb.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging_pan = mb.pressed
+		elif mb.button_index == MOUSE_BUTTON_LEFT and allow_left_pan:
+			if mb.pressed:
+				_dragging_pan = true
+				left_drag_moved_px = 0.0
+			else:
+				_dragging_pan = false
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
 			distance = clampf(distance * 0.89, 36.0, 560.0)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
@@ -44,6 +60,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			yaw_deg -= mm.relative.x * 0.28
 			pitch_deg = clampf(pitch_deg + mm.relative.y * 0.24, 14.0, 76.0)
 		elif _dragging_pan:
+			left_drag_moved_px += mm.relative.length()
 			var rad := deg_to_rad(yaw_deg)
 			var right := Vector3(cos(rad), 0.0, -sin(rad))
 			var fwd := Vector3(-sin(rad), 0.0, -cos(rad))

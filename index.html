@@ -123,11 +123,14 @@
 
     <!-- Dynamic City Event Choice Card -->
     <div id="eventCard" class="hidden glass rounded-xl p-3 w-[256px] max-w-[calc(100vw-20px)] shadow-2xl pointer-events-auto border-amber-400/60">
-      <div class="flex items-center gap-1.5 text-amber-300 font-bold text-xs">
-        <span id="evIcon">⚡</span>
-        <span id="evTitle">도시 이벤트</span>
+      <div id="eventHeader" class="flex items-center justify-between gap-1.5 text-amber-300 font-bold text-xs cursor-pointer hover:text-amber-200" title="클릭하여 이벤트 발생 위치로 이동">
+        <div class="flex items-center gap-1.5">
+          <span id="evIcon">⚡</span>
+          <span id="evTitle">도시 이벤트</span>
+        </div>
+        <button id="btnEvFocus" class="px-1.5 py-0.5 rounded bg-amber-400/20 hover:bg-amber-400/35 border border-amber-300/40 text-[10px] text-amber-200 font-semibold shrink-0">📍 이동</button>
       </div>
-      <p id="evDesc" class="text-[11px] text-[var(--foreground)] mt-1 leading-relaxed"></p>
+      <p id="evDesc" class="text-[11px] text-[var(--foreground)] mt-1 leading-relaxed cursor-pointer"></p>
       <div class="flex flex-col gap-1.5 mt-2">
         <button id="btnEvA" class="w-full text-left px-2.5 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/50 transition">
           <div id="evALabel" class="font-bold text-sky-200 text-xs"></div>
@@ -273,7 +276,7 @@
         <button id="btnOpenEconomy" class="px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)] whitespace-nowrap" title="재정·세율·통계 그래프">📊 재정</button>
         <button id="btnOpenSectors" class="px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)] text-emerald-300 whitespace-nowrap" title="25개 광역 부지 & 특화 지구">🗺️ 부지</button>
         <button id="btnOpenPolicies" class="px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)] whitespace-nowrap" title="시정 정책">📜 정책</button>
-        <button id="btnQuickInspect" class="tool-btn px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)]" title="조회 모드 (V)">🔍</button>
+        <button id="btnQuickInspect" class="tool-btn px-2 py-1.5 rounded-xl bg-slate-900/60 hover:bg-white/10 border border-[var(--border)]" title="이동 / 탐색 모드 (V)">✋</button>
       </div>
 
       <!-- 5. Undo + Iconic Circular Red Bulldoze Button (Thumb-sized on Mobile!) -->

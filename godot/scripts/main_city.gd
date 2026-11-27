@@ -51,9 +51,11 @@ func _ready() -> void:
 	hud.infoview_changed.connect(_set_infoview)
 	hud.tool_selected.connect(func(tm, sid, crv):
 		_tool_mode = tm; _sub_id = sid; _curved_road = crv
+		cam.allow_left_pan = (_tool_mode == "inspect")
 		_cancel_draw()
 	)
 	hud.bulldoze_building_requested.connect(func(bid): sim.bulldoze_by_id(bid))
+	hud.event_clicked.connect(_focus_active_event)
 
 	sim.world_changed.connect(func(): renderer.rebuild_world(sim))
 	sim.reset_and_build_demo()
@@ -62,6 +64,17 @@ func _ready() -> void:
 	hud.refresh_telemetry(sim)
 
 	_parse_cli_screenshot_args()
+
+func _focus_active_event() -> void:
+	var pos: Vector3 = sim.state.get("event_pos", Vector3(316.0, 22.0, 515.0))
+	cam.focus_on(pos, 138.0)
+	var bid: int = sim.state.get("event_building_id", -1)
+	if bid > 0:
+		for b in sim.buildings:
+			if b["id"] == bid:
+				hud.show_inspector(b)
+				return
+	hud.show_inspector(sim.find_building_at(pos, 22.0))
 
 func _process(delta: float) -> void:
 	sim.step_frame(delta, _speed_mult)
@@ -98,17 +111,24 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_2: _speed_mult = 2.5
 			KEY_3: _speed_mult = 5.0
 			KEY_ESCAPE: _cancel_draw()
-	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_RIGHT and _draw_has_start:
+	elif event is InputEventMouseButton:
+		if event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and _draw_has_start:
 			_cancel_draw()
 			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if hud.is_pointer_over_ui(event.position):
 				return
-			var hit := _raycast_ground(event.position)
-			if not hit["hit"]:
+			# In default Move/Inspect mode: dragging pans camera, short click release inspects building!
+			if _tool_mode == "inspect":
+				if not event.pressed and cam.left_drag_moved_px < 10.0:
+					var hit := _raycast_ground(event.position)
+					if hit["hit"]:
+						_handle_world_click(hit["pos"])
 				return
-			_handle_world_click(hit["pos"])
+			if event.pressed:
+				var hit := _raycast_ground(event.position)
+				if hit["hit"]:
+					_handle_world_click(hit["pos"])
 
 func _handle_world_click(pos: Vector3) -> void:
 	if _tool_mode == "inspect":

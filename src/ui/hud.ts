@@ -63,6 +63,7 @@ export interface HUDCallbacks {
   onTakeLoan: () => void;
   onCloseInspector: () => void;
   onJumpCamera: (gx: number, gy: number) => void;
+  onFocusTile: (gx: number, gy: number) => void;
   onCamPreset: (preset: 'close' | 'sat') => void;
 }
 
@@ -79,7 +80,7 @@ const CAT_ICONS: Record<string, { icon: string; short: string }> = {
 export class HUDController {
   private cb: HUDCallbacks;
   private selectedSectorForModal = 7;
-  private chirpHistory: string[] = [];
+  private chirpHistory: { msg: string; target: { x: number; y: number } | null }[] = [];
 
   constructor(cb: HUDCallbacks) {
     this.cb = cb;
@@ -103,7 +104,13 @@ export class HUDController {
     });
 
     el('btnToggleInfoViews')?.addEventListener('click', () => this.toggleInfoViews());
-    el('btnChirper')?.addEventListener('click', () => el('chirperDropdown')?.classList.toggle('hidden'));
+    el('btnChirper')?.addEventListener('click', () => {
+      const s = this.cb.getState();
+      if (s.chirpTarget) {
+        this.cb.onFocusTile(s.chirpTarget.x, s.chirpTarget.y);
+      }
+      el('chirperDropdown')?.classList.toggle('hidden');
+    });
     el('btnToggleMinimap')?.addEventListener('click', () => this.toggleMinimap());
     el('btnToggleSnap')?.addEventListener('click', () => this.cb.onToggleSnap());
     el('btnUndo')?.addEventListener('click', () => this.cb.onUndo());
@@ -132,6 +139,12 @@ export class HUDController {
     el('btnDemoCity')?.addEventListener('click', () => this.cb.onDemoCity());
     el('btnQuickInspect')?.addEventListener('click', () => this.cb.onSelectTool('inspect'));
     el('btnQuickBulldoze')?.addEventListener('click', () => this.cb.onSelectTool('bulldoze'));
+    const focusActiveEvent = () => {
+      const tgt = this.cb.getState().activeEvent?.target || this.cb.getState().chirpTarget;
+      if (tgt) this.cb.onFocusTile(tgt.x, tgt.y);
+    };
+    el('eventHeader')?.addEventListener('click', focusActiveEvent);
+    el('evDesc')?.addEventListener('click', focusActiveEvent);
     el('btnEvA')?.addEventListener('click', () => this.cb.onResolveEvent('A'));
     el('btnEvB')?.addEventListener('click', () => this.cb.onResolveEvent('B'));
     el('btnCloseInsp')?.addEventListener('click', () => this.cb.onCloseInspector());
@@ -408,14 +421,24 @@ export class HUDController {
     set('hudWater', `${st.waterUse}/${st.waterGen}m³`);
     set('hudChirp', s.chirp);
 
-    if (s.chirp && this.chirpHistory[0] !== s.chirp) {
-      this.chirpHistory.unshift(s.chirp);
-      if (this.chirpHistory.length > 5) this.chirpHistory.pop();
+    if (s.chirp && this.chirpHistory[0]?.msg !== s.chirp) {
+      this.chirpHistory.unshift({ msg: s.chirp, target: s.chirpTarget ? { ...s.chirpTarget } : null });
+      if (this.chirpHistory.length > 6) this.chirpHistory.pop();
       const cl = el('chirperList');
       if (cl) {
-        cl.innerHTML = this.chirpHistory
-          .map(msg => `<div class="p-1.5 rounded-lg bg-slate-900/60 border border-[var(--border)]">${msg}</div>`)
-          .join('');
+        cl.innerHTML = '';
+        for (const item of this.chirpHistory) {
+          const row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'w-full text-left p-1.5 rounded-lg bg-slate-900/60 hover:bg-sky-500/25 border border-[var(--border)] hover:border-sky-400/50 transition flex items-start justify-between gap-1.5 cursor-pointer';
+          row.innerHTML = `<span class="flex-1 leading-snug">${item.msg}</span>${item.target ? '<span class="text-[10px] text-sky-300 shrink-0 font-semibold">📍이동</span>' : ''}`;
+          row.addEventListener('click', () => {
+            const t = item.target || this.cb.getState().chirpTarget;
+            if (t) this.cb.onFocusTile(t.x, t.y);
+            el('chirperDropdown')?.classList.add('hidden');
+          });
+          cl.appendChild(row);
+        }
       }
     }
 

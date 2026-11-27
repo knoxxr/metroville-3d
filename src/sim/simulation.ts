@@ -789,25 +789,70 @@ export function runCitySimulation(state: CityState, rt: SimRuntime) {
     netIncome: totalTax - totalUpkeep,
   };
 
-  // Chirper Citizen Alerts
+  // Locate exact map coordinates for every Chirper news / alert so clicking jumps straight there!
+  let firePos: { x: number; y: number } | null = null;
+  let pollutedPumpPos: { x: number; y: number } | null = null;
+  let noPowerPos: { x: number; y: number } | null = null;
+  let noWaterPos: { x: number; y: number } | null = null;
+  let garbagePos: { x: number; y: number } | null = null;
+  let noGoodsPos: { x: number; y: number } | null = null;
+  let congestedPos: { x: number; y: number } | null = null;
+  let maxCong = 0;
+  let downtownPos: { x: number; y: number } | null = null;
+  let maxBldgScore = -1;
+
+  for (let gy = 0; gy < GRID; gy++) {
+    for (let gx = 0; gx < GRID; gx++) {
+      const tile = g[gy][gx];
+      if (!firePos && tile.onFire) firePos = { x: gx, y: gy };
+      if (!tile.building) continue;
+      const bt = tile.building.type;
+      if (!pollutedPumpPos && bt === 'water_pump' && tile.waterPollution > 10) pollutedPumpPos = { x: gx, y: gy };
+      if (!noPowerPos && !tile.powered && !isRoadType(bt) && bt !== 'park' && bt !== 'plaza') noPowerPos = { x: gx, y: gy };
+      if (!noWaterPos && (!tile.hasWater || !tile.hasSewage) && !isRoadType(bt) && bt !== 'park' && bt !== 'plaza') noWaterPos = { x: gx, y: gy };
+      if (!garbagePos && tile.garbageAccum > 45) garbagePos = { x: gx, y: gy };
+      if (!noGoodsPos && (bt === 'com_low' || bt === 'com_high') && (tile.goodsSupply ?? 100) < 72) noGoodsPos = { x: gx, y: gy };
+      if (isRoadType(bt) && tile.congestion > maxCong) {
+        maxCong = tile.congestion;
+        congestedPos = { x: gx, y: gy };
+      }
+      const score = (tile.building.level || 1) * (bt === 'landmark' ? 10 : bt === 'office' || bt === 'com_high' ? 4 : 1);
+      if (score > maxBldgScore) {
+        maxBldgScore = score;
+        downtownPos = { x: gx, y: gy };
+      }
+    }
+  }
+  const fallbackCenter = downtownPos || { x: Math.floor(GRID / 2), y: Math.floor(GRID / 2) };
+
+  // Chirper Citizen Alerts + Target Location
   if (activeFires > 0) {
     state.chirp = `🔥 #긴급화재 "건물에 불이 났어요(${activeFires}곳)! 소방서(🚒)와 도로 연결을 확인하세요!"`;
+    state.chirpTarget = firePos || fallbackCenter;
   } else if (anyPumpPolluted) {
     state.chirp = '🤢 #오염수비상 "수돗물이 오염됐어요! 취수장을 하수 배출구보다 강 상류(북쪽)로 옮기세요!"';
+    state.chirpTarget = pollutedPumpPos || fallbackCenter;
   } else if (powerUse > powerGen) {
     state.chirp = '⚡ #전력부족 "전력이 부족합니다! 발전소를 추가하거나 고압 송전선(🗼)으로 전력망을 연결하세요."';
+    state.chirpTarget = noPowerPos || fallbackCenter;
   } else if (waterUse > waterGen || sewageUse > sewageGen) {
     state.chirp = '💧 #상하수도경보 "물이나 하수 용량 부족! 지하 수도관(🔧)과 취수장·하수구를 확충하세요."';
+    state.chirpTarget = noWaterPos || fallbackCenter;
   } else if (!garbageOk) {
     state.chirp = '🗑️ #쓰레기대란 "쓰레기가 쌓이고 있어요! 매립지나 소각 발전소를 지어주세요."';
+    state.chirpTarget = garbagePos || fallbackCenter;
   } else if (cityGoodsRatio < 0.72 && goodsDemand > 50) {
     state.chirp = '📦 #물류부족 "상점에 상품이 부족해요! 산업단지를 확충하거나 외부 고속도로 연결을 확보하세요!"';
+    state.chirpTarget = noGoodsPos || fallbackCenter;
   } else if (unemploymentPct > 18 && totalPop > 200) {
     state.chirp = `👷 #실업률경보 "실업률이 ${unemploymentPct}%입니다! 상업·산업·오피스 일자리를 늘려주세요!"`;
+    state.chirpTarget = fallbackCenter;
   } else if (trafficFlow < 75) {
     state.chirp = '🚗 #교통체증 "혼잡 교차로를 클릭해 경로 분석기를 보고 회전교차로·4차선 대로로 확장해 보세요!"';
+    state.chirpTarget = congestedPos || fallbackCenter;
   } else {
     state.chirp = `🏙️ #${state.name} "인구 ${totalPop.toLocaleString()}명 · 실업률 ${unemploymentPct}% · 교통흐름 ${trafficFlow}% · 물류수급 ${Math.round(cityGoodsRatio * 100)}%"`;
+    state.chirpTarget = fallbackCenter;
   }
 }
 
@@ -1216,9 +1261,29 @@ export function simTick(state: CityState, rt: SimRuntime) {
     if (state.statsHistory.length > 36) state.statsHistory.shift();
   }
 
-  // Trigger periodic dynamic city events!
+  // Trigger periodic dynamic city events with real map target location!
   if (!state.activeEvent && state.day >= state.nextEventDay && state.stats.population >= 100) {
     const pick = CITY_EVENTS[Math.floor(Math.random() * CITY_EVENTS.length)];
+    let evTarget: { x: number; y: number } | null = null;
+    const candidates: { x: number; y: number }[] = [];
+    for (let gy = 0; gy < GRID; gy++) {
+      for (let gx = 0; gx < GRID; gx++) {
+        const b = state.grid[gy][gx].building;
+        if (!b || isRoadType(b.type)) continue;
+        if (pick.id.includes('power') || pick.id.includes('heat') || pick.id.includes('solar')) {
+          if (b.type === 'wind' || b.type === 'coal' || b.type === 'solar') candidates.push({ x: gx, y: gy });
+        } else if (pick.id.includes('tech') || pick.id.includes('boom') || pick.id.includes('trade')) {
+          if (b.type === 'office' || b.type === 'com_high' || b.type === 'ind_low') candidates.push({ x: gx, y: gy });
+        } else if (pick.id.includes('fest') || pick.id.includes('tour')) {
+          if (b.type === 'landmark' || b.type === 'park' || b.type === 'plaza' || b.type === 'com_high') candidates.push({ x: gx, y: gy });
+        }
+      }
+    }
+    if (candidates.length > 0) {
+      evTarget = candidates[Math.floor(Math.random() * candidates.length)];
+    } else {
+      evTarget = state.chirpTarget || { x: Math.floor(GRID / 2), y: Math.floor(GRID / 2) };
+    }
     state.activeEvent = {
       id: pick.id,
       icon: pick.icon,
@@ -1226,6 +1291,7 @@ export function simTick(state: CityState, rt: SimRuntime) {
       desc: pick.desc,
       choiceA: pick.choiceA,
       choiceB: pick.choiceB,
+      target: evTarget,
     };
     state.nextEventDay = state.day + 22 + Math.floor(Math.random() * 14);
     playSound('snap');

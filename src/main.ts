@@ -34,9 +34,9 @@ const engine = new ThreeEngine(canvas);
 
 let state: CityState = loadCityState() || createDemoCity();
 let activeCategory = 'road';
-let activeTool = 'road';
-let trayOpen = window.innerWidth >= 768;
-let touchCamMode: 'build' | 'pan' | 'orbit' = 'build';
+let activeTool = 'inspect';
+let trayOpen = false;
+let touchCamMode: 'build' | 'pan' | 'orbit' = 'pan';
 let brushMode: BrushMode = 'auto';
 let roadDrawMode: RoadDrawMode = 'l_bend';
 let snapEnabled = true;
@@ -426,6 +426,15 @@ const hud = new HUDController({
     engine.cam.targetTx = gx - GRID / 2 + 0.5;
     engine.cam.targetTz = gy - GRID / 2 + 0.5;
   },
+  onFocusTile: (gx, gy) => {
+    if (!inBounds(gx, gy)) return;
+    engine.cam.targetTx = gx - GRID / 2 + 0.5;
+    engine.cam.targetTz = gy - GRID / 2 + 0.5;
+    engine.cam.targetDist = Math.min(engine.cam.targetDist, 22);
+    selectedTile = { x: gx, y: gy };
+    playSound('snap');
+    hud.updateInspector();
+  },
   onCamPreset: (preset) => {
     if (preset === 'close') {
       engine.cam.targetDist = 18;
@@ -615,10 +624,10 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
 
-  // Mobile 1-finger Pan mode OR Alt+Drag OR Touch in Inspect mode = Smooth Camera Pan!
+  // Default Move/Inspect Mode OR Alt+Drag OR Mobile Pan = Smooth Camera Pan (short click inspects tile!)
   if (
-    (e.button === 0 && e.altKey) ||
-    (e.pointerType === 'touch' && (touchCamMode === 'pan' || activeTool === 'inspect'))
+    (e.button === 0 && (e.altKey || activeTool === 'inspect')) ||
+    (e.pointerType === 'touch' && touchCamMode === 'pan')
   ) {
     isPanning = true;
     touchPanMovedPx = 0;
@@ -633,21 +642,6 @@ canvas.addEventListener('pointerdown', (e) => {
   const gPos = engine.screenToGrid(e.clientX, e.clientY);
   if (!gPos) return;
   hoverTile = gPos;
-
-  if (activeTool === 'inspect') {
-    const now = performance.now();
-    const k = `${gPos.x},${gPos.y}`;
-    if (k === lastClickKey && now - lastClickTime < 340) {
-      engine.cam.targetTx = gPos.x - GRID / 2 + 0.5;
-      engine.cam.targetTz = gPos.y - GRID / 2 + 0.5;
-      engine.cam.targetDist = Math.min(engine.cam.targetDist, 20);
-    }
-    lastClickTime = now;
-    lastClickKey = k;
-    selectedTile = gPos;
-    hud.updateInspector();
-    return;
-  }
 
   dragStart = gPos;
   refreshPreview();
