@@ -11,6 +11,7 @@ var preview_mesh_inst: MeshInstance3D
 var _mat_road_2: ShaderMaterial
 var _mat_road_4: ShaderMaterial
 var _mat_road_6: ShaderMaterial
+var _mat_junction: ShaderMaterial
 var _mat_sidewalk: StandardMaterial3D
 var _mat_bridge_steel: StandardMaterial3D
 var _mat_concrete: StandardMaterial3D
@@ -133,52 +134,108 @@ func update_road_preview(points: Array[Vector3]) -> void:
 	preview_mesh_inst.mesh = st.commit()
 
 func _build_all_roads(net: RoadNetwork) -> void:
+	# 1. Pre-compute clean intersection apron radius for every multi-way node so roads stop cleanly at the crosswalk!
+	var node_trim: Dictionary = {}
+	var node_max_w: Dictionary = {}
+	var node_has_sidewalk: Dictionary = {}
+	for node in net.nodes.values():
+		var nid: int = node["id"]
+		var deg: int = node["segments"].size()
+		var max_w := 8.0
+		var any_sw := false
+		for sid in node["segments"]:
+			var sp: Dictionary = RoadNetwork.ROAD_SPECS[net.segments[sid]["type"]]
+			max_w = maxf(max_w, sp["asphalt_w"])
+			if sp["sidewalks"]:
+				any_sw = true
+		node_max_w[nid] = max_w
+		node_has_sidewalk[nid] = any_sw
+		if deg >= 3:
+			node_trim[nid] = max_w * 0.56 + 1.8
+		elif deg == 2:
+			node_trim[nid] = max_w * 0.42
+		else:
+			node_trim[nid] = 0.0
+
+	# 2. Extrude each road segment trimmed cleanly between start & end intersection stop-lines
 	for seg in net.segments.values():
 		var spec: Dictionary = RoadNetwork.ROAD_SPECS[seg["type"]]
-		var slices: int = clampi(int(ceil(seg["length"] / 4.2)), 8, 56)
+		var seg_len: float = maxf(8.0, seg["length"])
+		var start_id: int = seg["start_id"]
+		var end_id: int = seg["end_id"]
+		var start_deg: int = net.nodes[start_id]["segments"].size()
+		var end_deg: int = net.nodes[end_id]["segments"].size()
+
+		var trim_s: float = minf(node_trim.get(start_id, 0.0), seg_len * 0.32)
+		var trim_e: float = minf(node_trim.get(end_id, 0.0), seg_len * 0.32)
+		var t_start: float = trim_s / seg_len
+		var t_end: float = 1.0 - (trim_e / seg_len)
+		if t_end <= t_start + 0.04:
+			t_start = 0.0
+			t_end = 1.0
+		var trimmed_len: float = maxf(4.0, seg_len * (t_end - t_start))
+
+		var slices: int = clampi(int(ceil(trimmed_len / 4.0)), 8, 56)
 		var base_mat: ShaderMaterial = _mat_road_2 if seg["type"] == 0 else (_mat_road_4 if seg["type"] == 1 else _mat_road_6)
 		var seg_mat: ShaderMaterial = base_mat.duplicate()
+		seg_mat.set_shader_parameter("seg_length", trimmed_len)
+		seg_mat.set_shader_parameter("has_start_xwalk", 1.0 if (start_deg >= 3 and spec["sidewalks"]) else 0.0)
+		seg_mat.set_shader_parameter("has_end_xwalk", 1.0 if (end_deg >= 3 and spec["sidewalks"]) else 0.0)
 		_road_mesh_entries.append({"seg_id": seg["id"], "mat": seg_mat})
 
-		# Asphalt carriageway ribbon
-		var asph_mesh := _extrude_ribbon(net, seg, slices, -spec["asphalt_w"] * 0.5, spec["asphalt_w"] * 0.5, 0.16, 0.55)
+		# Asphalt carriageway ribbon (starts/ends flush with intersection apron, zero overlap!)
+		var asph_mesh := _extrude_ribbon(net, seg, slices, -spec["asphalt_w"] * 0.5, spec["asphalt_w"] * 0.5, 0.16, 0.55, t_start, t_end)
 		_add_mesh_node(roads_root, "Road_%d" % seg["id"], asph_mesh, seg_mat)
 
-		# Raised concrete sidewalks with beveled curbs
+		# Raised concrete sidewalks stopped cleanly at crosswalk corners (never bisecting intersections!)
 		if spec["sidewalks"]:
 			var hw: float = spec["asphalt_w"] * 0.5
 			var outer: float = hw + spec["sidewalk_w"]
-			_add_mesh_node(roads_root, "WalkR_%d" % seg["id"], _extrude_ribbon(net, seg, slices, hw, outer, 0.34, 0.72), _mat_sidewalk)
-			_add_mesh_node(roads_root, "WalkL_%d" % seg["id"], _extrude_ribbon(net, seg, slices, -outer, -hw, 0.34, 0.72), _mat_sidewalk)
+			_add_mesh_node(roads_root, "WalkR_%d" % seg["id"], _extrude_ribbon(net, seg, slices, hw, outer, 0.32, 0.70, t_start, t_end), _mat_sidewalk)
+			_add_mesh_node(roads_root, "WalkL_%d" % seg["id"], _extrude_ribbon(net, seg, slices, -outer, -hw, 0.32, 0.70, t_start, t_end), _mat_sidewalk)
 
 		if seg["is_bridge"]:
 			_build_suspension_bridge(net, seg, spec)
 		elif spec["sidewalks"]:
 			_build_streetlamps(net, seg, spec)
 
-	# Intersection circular asphalt aprons + 3D Traffic Signal Poles
+	# 3. Clean unmarked weathered-asphalt intersection aprons + outer sidewalk curbs + 3D Traffic Signal Poles
 	for node in net.nodes.values():
-		if node["segments"].size() < 2:
+		var deg: int = node["segments"].size()
+		if deg < 2:
 			continue
-		var max_w := 8.0
-		for sid in node["segments"]:
-			max_w = maxf(max_w, RoadNetwork.ROAD_SPECS[net.segments[sid]["type"]]["asphalt_w"])
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = max_w * 0.62
-		cyl.bottom_radius = max_w * 0.66
-		cyl.height = 0.38
-		var pad := _add_mesh_node(roads_root, "Junction_%d" % node["id"], cyl, _mat_road_2)
-		pad.position = node["pos"] + Vector3(0.0, 0.04, 0.0)
+		var nid: int = node["id"]
+		var apron_r: float = node_trim[nid] + 1.4
 
-		if node["segments"].size() >= 3:
-			var corner: float = max_w * 0.62
+		# Clean unmarked dark asphalt intersection surface (matches road_pbr.gdshader grain & tone!)
+		var j_mat: ShaderMaterial = _mat_junction.duplicate()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = apron_r
+		cyl.bottom_radius = apron_r + 0.5
+		cyl.height = 0.52
+		cyl.radial_segments = 28
+		var pad := _add_mesh_node(roads_root, "Junction_%d" % nid, cyl, j_mat)
+		pad.position = Vector3(node["pos"].x, maxf(node["pos"].y, TerrainField.sample_height(node["pos"].x, node["pos"].z)) - 0.115, node["pos"].z)
+
+		# Subtle outer sidewalk border collar around 3/4-way intersections
+		if deg >= 3 and node_has_sidewalk[nid]:
+			var curb_cyl := CylinderMesh.new()
+			curb_cyl.top_radius = apron_r + 3.2
+			curb_cyl.bottom_radius = apron_r + 3.8
+			curb_cyl.height = 0.44
+			curb_cyl.radial_segments = 28
+			var curb_pad := _add_mesh_node(roads_root, "JunctionCurb_%d" % nid, curb_cyl, _mat_sidewalk)
+			curb_pad.position = Vector3(pad.position.x, pad.position.y - 0.10, pad.position.z)
+
+			# 3D Intersection Traffic Signal Poles placed cleanly outside the crosswalk corners
+			var corner: float = apron_r + 1.0
 			for sgn in [1.0, -1.0]:
-				var pole_pos: Vector3 = node["pos"] + Vector3(corner * sgn, 0.0, corner * sgn)
+				var pole_pos := Vector3(pad.position.x + corner * 0.72 * sgn, pad.position.y + 0.25, pad.position.z + corner * 0.72 * sgn)
 				_spawn_box(roads_root, pole_pos + Vector3(0, 3.4, 0), Vector3(0.28, 6.8, 0.28), 0.0, _mat_roof_dark)
 				_spawn_box(roads_root, pole_pos + Vector3(-1.4 * sgn, 6.5, 0), Vector3(2.8, 0.22, 0.22), 0.0, _mat_roof_dark)
 				_spawn_box(roads_root, pole_pos + Vector3(-2.1 * sgn, 6.2, 0), Vector3(0.45, 0.9, 0.35), 0.0, _mat_signal_green)
 
-func _extrude_ribbon(net: RoadNetwork, seg: Dictionary, slices: int, off_l: float, off_r: float, top_y: float, skirt_d: float) -> ArrayMesh:
+func _extrude_ribbon(net: RoadNetwork, seg: Dictionary, slices: int, off_l: float, off_r: float, top_y: float, skirt_d: float, t_start: float = 0.0, t_end: float = 1.0) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var dist_acc := 0.0
@@ -186,7 +243,7 @@ func _extrude_ribbon(net: RoadNetwork, seg: Dictionary, slices: int, off_l: floa
 	var ring_p: Array[Array] = []
 
 	for i in range(slices + 1):
-		var t: float = float(i) / float(slices)
+		var t: float = lerpf(t_start, t_end, float(i) / float(slices))
 		var c: Vector3 = net.sample_pos(seg, t)
 		if not seg["is_bridge"]:
 			c.y = maxf(c.y, TerrainField.sample_height(c.x, c.z) + 0.16)
@@ -478,6 +535,8 @@ func _init_materials() -> void:
 	_mat_road_2 = ShaderMaterial.new(); _mat_road_2.shader = road_sh; _mat_road_2.set_shader_parameter("lane_count", 2)
 	_mat_road_4 = ShaderMaterial.new(); _mat_road_4.shader = road_sh; _mat_road_4.set_shader_parameter("lane_count", 4)
 	_mat_road_6 = ShaderMaterial.new(); _mat_road_6.shader = road_sh; _mat_road_6.set_shader_parameter("lane_count", 6)
+	var junc_sh: Shader = load("res://shaders/junction_asphalt.gdshader")
+	_mat_junction = ShaderMaterial.new(); _mat_junction.shader = junc_sh
 
 	var glass_sh: Shader = load("res://shaders/skyscraper_interior.gdshader")
 	_mat_glass_blue = ShaderMaterial.new(); _mat_glass_blue.shader = glass_sh

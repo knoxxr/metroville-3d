@@ -515,9 +515,10 @@ export function createPBRTextures(): PBRTextureSet {
   r1.fillRect(56, 0, 8, S); r1.fillRect(S - 64, 0, 8, S);
   r1.fillStyle = 'rgba(0,0,0,0.28)';
   r1.fillRect(64, 0, 6, S); r1.fillRect(S - 70, 0, 6, S);
-  r1.fillStyle = '#ecc656';
-  for (let y = 18; y < S; y += 72) r1.fillRect(S / 2 - 4, y, 8, 38);
-  r1.fillStyle = 'rgba(240,245,250,0.68)';
+  // Crisp 2-lane street: subtle double-yellow center divider & clean white edge lines
+  r1.fillStyle = '#e5be4c';
+  r1.fillRect(S / 2 - 6, 0, 4, S); r1.fillRect(S / 2 + 2, 0, 4, S);
+  r1.fillStyle = 'rgba(240,245,250,0.62)';
   r1.fillRect(78, 0, 4, S); r1.fillRect(S - 82, 0, 4, S);
 
   const [avc, av] = makeCanvas(S);
@@ -531,47 +532,62 @@ export function createPBRTextures(): PBRTextureSet {
   av.fillStyle = '#678c49';
   av.fillRect(S / 2 - 20, 14, 40, S - 28);
   av.fillStyle = 'rgba(240,245,250,0.78)';
-  for (let y = 16; y < S; y += 68) { av.fillRect(136, y, 6, 34); av.fillRect(S - 142, y, 6, 34); }
+  for (let y = 20; y < S; y += 84) { av.fillRect(136, y, 5, 34); av.fillRect(S - 141, y, 5, 34); }
+  av.fillStyle = 'rgba(240,245,250,0.52)';
+  av.fillRect(58, 0, 4, S); av.fillRect(S - 62, 0, 4, S);
 
   const [hwc, hw] = makeCanvas(S);
   fillWeatheredAsphalt(hw, S, '#2f353e');
   hw.fillStyle = '#ccd4de';
   hw.fillRect(0, 0, 28, S); hw.fillRect(S - 28, 0, 28, S);
   hw.fillStyle = '#e5ae3c';
-  hw.fillRect(S / 2 - 8, 0, 5, S); hw.fillRect(S / 2 + 3, 0, 5, S);
+  hw.fillRect(S / 2 - 7, 0, 4, S); hw.fillRect(S / 2 + 3, 0, 4, S);
   hw.fillStyle = 'rgba(242,247,252,0.80)';
-  for (let y = 18; y < S; y += 64) { hw.fillRect(132, y, 6, 34); hw.fillRect(S - 138, y, 6, 34); }
+  for (let y = 20; y < S; y += 80) { hw.fillRect(132, y, 5, 32); hw.fillRect(S - 137, y, 5, 32); }
 
+  // Smooth 90-degree curve with matched sidewalks, white edge lines & double-yellow centerline
   const [cc, cr] = makeCanvas(S);
   cr.fillStyle = '#c4cbd4'; cr.fillRect(0, 0, S, S);
-  cr.beginPath(); cr.arc(S, S, S - 62, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
+  cr.beginPath(); cr.arc(S, S, S - 64, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
   cr.fillStyle = '#3a414b'; cr.fill();
-  cr.beginPath(); cr.arc(S, S, S - 62, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#dfe5ec'; cr.lineWidth = 9; cr.stroke();
-  cr.beginPath(); cr.arc(S, S, 62, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
+  cr.beginPath(); cr.arc(S, S, S - 64, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#dfe5ec'; cr.lineWidth = 8; cr.stroke();
+  cr.beginPath(); cr.arc(S, S, 64, Math.PI, Math.PI * 1.5); cr.lineTo(S, S); cr.closePath();
   cr.fillStyle = '#c4cbd4'; cr.fill();
-  cr.beginPath(); cr.arc(S, S, 62, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#dfe5ec'; cr.lineWidth = 8; cr.stroke();
-  cr.beginPath(); cr.arc(S, S, S / 2, Math.PI, Math.PI * 1.5);
-  cr.strokeStyle = '#ecc656'; cr.lineWidth = 8; cr.setLineDash([36, 32]); cr.stroke(); cr.setLineDash([]);
+  cr.beginPath(); cr.arc(S, S, 64, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#dfe5ec'; cr.lineWidth = 8; cr.stroke();
+  // Clean white outer/inner shoulder lines
+  cr.beginPath(); cr.arc(S, S, S - 80, Math.PI, Math.PI * 1.5); cr.strokeStyle = 'rgba(240,245,250,0.62)'; cr.lineWidth = 4; cr.stroke();
+  cr.beginPath(); cr.arc(S, S, 80, Math.PI, Math.PI * 1.5); cr.strokeStyle = 'rgba(240,245,250,0.62)'; cr.lineWidth = 4; cr.stroke();
+  // Clean curved double-yellow center divider aligned exactly with roadStraight
+  cr.beginPath(); cr.arc(S, S, S / 2 - 4, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#e5be4c'; cr.lineWidth = 4; cr.stroke();
+  cr.beginPath(); cr.arc(S, S, S / 2 + 4, Math.PI, Math.PI * 1.5); cr.strokeStyle = '#e5be4c'; cr.lineWidth = 4; cr.stroke();
 
+  // Authentic Cities: Skylines / Korean Intersection: outer right-hand stop-bars -> zebra crosswalks -> clean unmarked center box!
   const [xc, xctx] = makeCanvas(S);
   fillWeatheredAsphalt(xctx, S, '#373e48');
   const corners: [number, number][] = [[0, 0], [S, 0], [0, S], [S, S]];
   for (const [cx, cy] of corners) {
-    xctx.beginPath(); xctx.arc(cx, cy, 66, 0, Math.PI * 2);
+    xctx.beginPath(); xctx.arc(cx, cy, 64, 0, Math.PI * 2);
     xctx.fillStyle = '#c4cbd4'; xctx.fill();
     xctx.strokeStyle = '#dfe5ec'; xctx.lineWidth = 7; xctx.stroke();
   }
+  // 1. Crisp right-hand approach stop bars positioned BEFORE the crosswalks (outer edge!)
   xctx.fillStyle = 'rgba(242,246,250,0.82)';
-  for (let i = 92; i <= S - 112; i += 38) {
-    xctx.fillRect(i, 18, 18, 44); xctx.fillRect(i, S - 62, 18, 44);
-    xctx.fillRect(18, i, 44, 18); xctx.fillRect(S - 62, i, 44, 18);
+  xctx.fillRect(S / 2 + 8, 8, S / 2 - 92, 6);        // Top approach (right lane going down)
+  xctx.fillRect(84, S - 14, S / 2 - 92, 6);          // Bottom approach (right lane going up)
+  xctx.fillRect(8, 84, 6, S / 2 - 92);               // Left approach (right lane going right)
+  xctx.fillRect(S - 14, S / 2 + 8, 6, S / 2 - 92);   // Right approach (right lane going left)
+  // 2. Crisp zebra crosswalk bars cleanly inside the stop bars, leaving center intersection box open
+  xctx.fillStyle = 'rgba(242,246,250,0.84)';
+  for (let i = 94; i <= S - 110; i += 36) {
+    xctx.fillRect(i, 24, 16, 42); xctx.fillRect(i, S - 66, 16, 42);
+    xctx.fillRect(24, i, 42, 16); xctx.fillRect(S - 66, i, 42, 16);
   }
-  // Crisp white stop bars behind crosswalks
-  xctx.fillStyle = 'rgba(242,246,250,0.65)';
-  xctx.fillRect(88, 70, S - 176, 5);
-  xctx.fillRect(88, S - 75, S - 176, 5);
-  xctx.fillRect(70, 88, 5, S - 176);
-  xctx.fillRect(S - 75, 88, 5, S - 176);
+  // 3. Subtle white dotted turn-box guide lines in center
+  xctx.strokeStyle = 'rgba(242,246,250,0.22)';
+  xctx.lineWidth = 3;
+  xctx.setLineDash([12, 16]);
+  xctx.strokeRect(102, 102, S - 204, S - 204);
+  xctx.setLineDash([]);
 
   const [rbc, rb] = makeCanvas(S);
   fillWeatheredAsphalt(rb, S, '#353c46');
